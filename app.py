@@ -35,26 +35,6 @@ st.markdown("""
         display: none !important;
         visibility: hidden !important;
     }
-    /* Force sidebar closed by default via CSS */
-    section[data-testid="stSidebar"] {
-        transform: translateX(-100%);
-        transition: transform 0.3s ease;
-    }
-    section[data-testid="stSidebar"][aria-expanded="true"] {
-        transform: translateX(0);
-    }
-    /* Replace sidebar >> arrows with "CLICK PER CONTROLLI" */
-    button[data-testid="stSidebarCollapsedControl"] svg {
-        display: none !important;
-    }
-    button[data-testid="stSidebarCollapsedControl"]::after {
-        content: "CLICK PER CONTROLLI";
-        font-size: 0.8rem;
-        font-weight: 700;
-        color: #0f3460;
-        letter-spacing: 0.05em;
-        white-space: nowrap;
-    }
     @media (max-width: 768px) {
         .block-container { padding: 0.5rem 0.8rem !important; }
         .main-header h1 { font-size: 1.1rem !important; }
