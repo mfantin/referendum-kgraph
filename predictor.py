@@ -131,7 +131,9 @@ def _sentiment_signal(articles: list[Article]) -> Signal:
     si_prob = max(0.1, min(0.9, si_prob))
     no_prob = 1.0 - si_prob
 
-    confidence = min(0.5, total_directional * 0.03)
+    # Higher confidence scaling: more directional articles = more confidence
+    coverage = total_directional / max(len(articles), 1)
+    confidence = min(0.7, total_directional * 0.04 + coverage * 0.2)
 
     return Signal(
         "Sentiment Media",
@@ -139,7 +141,7 @@ def _sentiment_signal(articles: list[Article]) -> Signal:
         round(no_prob, 4),
         confidence,
         config.SIGNAL_WEIGHTS["media_sentiment"],
-        f"SI: {si_count} articoli | NO: {no_count} | Neutri: {len(articles) - total_directional}",
+        f"SI: {si_count} articoli | NO: {no_count} | Neutri: {len(articles) - total_directional} | Copertura: {coverage:.0%}",
     )
 
 

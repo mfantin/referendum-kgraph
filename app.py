@@ -321,7 +321,7 @@ def load_data(extra_feeds_keys=None, extra_feeds=None):
 
 @st.cache_data(ttl=900, show_spinner="Scoperta nuove fonti...")
 def run_discovery():
-    return discover_sources(max_new=15)
+    return discover_sources(max_new=50)
 
 
 # ============================================================
@@ -632,11 +632,18 @@ def live_dashboard():
 
     # --- Tab 5: Source Discovery ---
     with tab_discovery:
-        st.markdown("### \U0001f50d Motore di Scoperta Fonti")
+        st.markdown("### \U0001f50d Discovery Multi-Agente")
         st.caption(
-            "Ricerca automatica di nuovi feed RSS, Google News, Reddit e media internazionali "
-            "rilevanti per il referendum. Le fonti attive vengono integrate nel Knowledge Graph."
+            "5 agenti specializzati scandagliano la rete in parallelo: "
+            "media italiani, stampa internazionale, Google News (multi-query), "
+            "social/community, fonti istituzionali."
         )
+
+        # Show agent breakdown
+        from source_discovery import DISCOVERY_AGENTS
+        agent_cols = st.columns(len(DISCOVERY_AGENTS))
+        for i, (agent_name, count) in enumerate(DISCOVERY_AGENTS.items()):
+            agent_cols[i].metric(agent_name, f"{count} fonti")
 
         if discovered:
             disc_stats = get_discovery_stats(discovered)

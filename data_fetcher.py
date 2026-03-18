@@ -106,14 +106,20 @@ def analyze_sentiment(text: str) -> tuple[float, str]:
         return 0.0, "NEUTRAL"
 
     score = (si_hits - no_hits) / total
-    if score > 0.15:
+
+    # Lower threshold: even a slight lean counts as directional
+    if score > 0.05:
         direction = "SI"
-    elif score < -0.15:
+    elif score < -0.05:
         direction = "NO"
     else:
         direction = "NEUTRAL"
 
-    return round(score, 3), direction
+    # Boost score magnitude when there are many keyword hits
+    magnitude_boost = min(2.0, 1.0 + total * 0.1)
+    boosted_score = max(-1.0, min(1.0, score * magnitude_boost))
+
+    return round(boosted_score, 3), direction
 
 
 def extract_entities(text: str) -> tuple[list[str], list[str]]:

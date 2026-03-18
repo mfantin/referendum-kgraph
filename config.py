@@ -196,24 +196,87 @@ KNOWN_POLLS = [
     },
 ]
 
-# --- Sentiment Lexicon (Italian) ---
+# --- Sentiment Lexicon (Italian) - expanded ---
 SENTIMENT_SI = [
-    "approvare", "approva", "approvazione", "favorevole", "favore",
-    "sostenere", "sostegno", "riforma necessaria", "modernizzare",
-    "efficienza", "efficiente", "giustizia giusta", "cambiamento",
-    "separazione necessaria", "imparzialità", "terzietà del giudice",
-    "garanzia", "equilibrio dei poteri", "vota sì", "votare sì",
-    "a favore", "pro riforma", "migliorare la giustizia",
+    # Verbi / azioni pro-riforma
+    "approvare", "approva", "approvato", "approvazione", "approviamo",
+    "sostenere", "sostiene", "sostegno", "sostenuto",
+    "votare sì", "vota sì", "voterà sì", "voto favorevole",
+    "promuovere", "promuove",
+    # Aggettivi / giudizi positivi sulla riforma
+    "favorevole", "favore", "a favore", "pro riforma",
+    "riforma necessaria", "riforma giusta", "riforma equilibrata",
+    "buona riforma", "riforma positiva", "riforma moderna",
+    "passo avanti", "passo in avanti", "svolta",
+    "modernizzare", "modernizzazione", "innovare", "innovazione",
+    "efficienza", "efficiente", "efficacia",
+    "migliorare", "miglioramento", "migliorare la giustizia",
+    "cambiamento", "rinnovamento", "progresso",
+    # Argomenti specifici pro-SI
+    "separazione necessaria", "separazione delle carriere",
+    "imparzialità", "terzietà", "terzietà del giudice",
+    "giudice imparziale", "giudice terzo",
+    "garanzia", "garanzie", "garantire",
+    "equilibrio dei poteri", "equilibrio",
+    "processo giusto", "giusto processo",
+    "tutela dei diritti", "diritti dei cittadini",
+    "trasparenza", "responsabilità", "accountability",
+    "meritocrazia", "professionalità",
+    # Posizioni partiti/politici pro-SI
+    "centrodestra unito", "governo approva", "meloni sostiene",
+    "nordio difende", "la riforma funziona",
+    "maggioranza a favore", "coalizione compatta",
+    # Sondaggi/trend pro-SI
+    "sì in vantaggio", "sì avanti", "cresce il sì",
+    "consenso per il sì", "vittoria del sì",
+    "sondaggi favorevoli", "trend positivo",
+    # Inglese
+    "approve", "support", "in favor", "reform needed",
+    "yes vote", "vote yes", "pro reform",
 ]
 
 SENTIMENT_NO = [
-    "bocciare", "bocciatura", "contrario", "respingere",
-    "pericoloso", "pericolo", "rischio", "minaccia",
-    "indipendenza magistratura", "attacco alla magistratura",
-    "concentrazione poteri", "indebolire", "smantellare",
-    "contro la riforma", "vota no", "votare no", "no alla riforma",
-    "pm sotto controllo", "giustizia a rischio", "democrazia a rischio",
-    "controriforma", "passo indietro",
+    # Verbi / azioni anti-riforma
+    "bocciare", "boccia", "bocciato", "bocciatura", "bocciamo",
+    "respingere", "respinto", "respinge",
+    "votare no", "vota no", "voterà no", "voto contrario",
+    "opporsi", "oppone", "opposizione alla riforma",
+    "rigettare", "rigetto", "rifiutare", "rifiuto",
+    "abrogare", "abolire", "cancellare",
+    # Aggettivi / giudizi negativi
+    "contrario", "contrari", "contro la riforma",
+    "pericoloso", "pericolosa", "pericolo",
+    "rischio", "rischioso", "rischiosa", "a rischio",
+    "minaccia", "minacciare", "minaccioso",
+    "dannoso", "dannosa", "danno", "danni",
+    "negativo", "negativa", "pessimo", "pessima",
+    "sbagliato", "sbagliata", "errore", "grave errore",
+    "passo indietro", "regressione", "arretramento",
+    "controriforma", "stravolgimento",
+    # Argomenti specifici anti-riforma
+    "indipendenza magistratura", "indipendenza dei magistrati",
+    "attacco alla magistratura", "attacco ai magistrati",
+    "attacco alla giustizia", "mani sulla giustizia",
+    "concentrazione poteri", "concentrazione di potere",
+    "indebolire", "indebolimento", "smantellare", "smantellamento",
+    "pm sotto controllo", "controllo politico",
+    "giustizia a rischio", "democrazia a rischio",
+    "stato di diritto a rischio", "colpo alla democrazia",
+    "magistratura sotto attacco", "bavaglio",
+    "potere esecutivo", "ingerenza politica", "politicizzare",
+    "corporativismo", "casta", "privilegio",
+    "due binari", "magistrati di serie b",
+    # Posizioni partiti/politici anti-riforma
+    "opposizione compatta", "schlein contro", "conte contro",
+    "pd contrario", "m5s contrario", "sinistra contro",
+    "anm contraria", "magistrati contrari",
+    # Sondaggi/trend pro-NO
+    "no in vantaggio", "no avanti", "cresce il no",
+    "consenso per il no", "vittoria del no",
+    "affluenza bassa", "astensione", "disaffezione",
+    # Inglese
+    "reject", "oppose", "against", "dangerous reform",
+    "no vote", "vote no", "anti reform", "threat to democracy",
 ]
 
 # --- Entity Detection Keywords ---
@@ -256,7 +319,7 @@ NODE_COLORS = {
 # --- Refresh & Cache ---
 DEFAULT_REFRESH_SECONDS = 300
 CACHE_TTL_SECONDS = 300
-MAX_ARTICLES = 200
+MAX_ARTICLES = 500
 GRAPH_LAYOUT_SEED = 42
 
 # --- Prediction Weights ---
