@@ -22,7 +22,7 @@ st.set_page_config(
     page_title="Referendum KG - Predizione Live",
     page_icon="\U0001f1ee\U0001f1f9",
     layout="wide",
-    initial_sidebar_state="auto",
+    initial_sidebar_state="collapsed",
 )
 
 # --- CSS (rendered once, never refreshed) ---
@@ -34,6 +34,14 @@ st.markdown("""
     #MainMenu, header[data-testid="stHeader"] button[kind="header"] {
         display: none !important;
         visibility: hidden !important;
+    }
+    /* Force sidebar closed by default via CSS */
+    section[data-testid="stSidebar"] {
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+    }
+    section[data-testid="stSidebar"][aria-expanded="true"] {
+        transform: translateX(0);
     }
     /* Replace sidebar >> arrows with "CLICK PER CONTROLLI" */
     button[data-testid="stSidebarCollapsedControl"] svg {
