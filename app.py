@@ -28,6 +28,16 @@ st.set_page_config(
 # --- CSS (rendered once, never refreshed) ---
 st.markdown("""
 <style>
+    /* Label "CONTROLLI" next to sidebar toggle arrow */
+    button[data-testid="stSidebarCollapsedControl"]::after {
+        content: "CONTROLLI";
+        font-size: 0.75rem;
+        font-weight: 700;
+        color: #0f3460;
+        letter-spacing: 0.05em;
+        margin-left: 4px;
+        vertical-align: middle;
+    }
     @media (max-width: 768px) {
         .block-container { padding: 0.5rem 0.8rem !important; }
         .main-header h1 { font-size: 1.1rem !important; }
