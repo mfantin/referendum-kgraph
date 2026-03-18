@@ -35,21 +35,6 @@ st.markdown("""
         display: none !important;
         visibility: hidden !important;
     }
-    /* "CONTROLLI" text above the native sidebar toggle */
-    [data-testid="collapsedControl"] {
-        display: flex !important;
-        flex-direction: column !important;
-        align-items: center !important;
-    }
-    [data-testid="collapsedControl"]::before {
-        content: "CONTROLLI";
-        font-size: 0.95rem;
-        font-weight: 800;
-        color: #0f3460;
-        letter-spacing: 0.08em;
-        margin-bottom: 2px;
-        cursor: pointer;
-    }
     @media (max-width: 768px) {
         .block-container { padding: 0.5rem 0.8rem !important; }
         .main-header h1 { font-size: 1.1rem !important; }
@@ -174,6 +159,13 @@ with st.sidebar:
     st.markdown("---")
     st.caption("**Come usare su smartphone:**")
     st.caption("Apri il link nel browser, aggiungi a Home Screen per esperienza app-like.")
+
+# --- Hint for sidebar controls ---
+st.markdown(
+    '<p style="margin:0 0 0.4rem 0; font-size:0.85rem; color:#0f3460; font-weight:700;">'
+    '\u2699\ufe0f Clicca <strong>\u00bb</strong> in alto a sinistra per aprire i <strong>CONTROLLI</strong></p>',
+    unsafe_allow_html=True,
+)
 
 # --- Header with JS countdown (always animated, independent from data refresh) ---
 st.markdown("""
