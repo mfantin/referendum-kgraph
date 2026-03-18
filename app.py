@@ -9,7 +9,7 @@ import streamlit as st
 import plotly.graph_objects as go
 import pandas as pd
 from datetime import datetime, timezone
-from st_autorefresh import st_autorefresh
+import streamlit.components.v1 as components
 
 import config
 from data_fetcher import fetch_all_feeds, get_all_polls
@@ -25,8 +25,52 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# --- Auto-refresh every 1 second (client-side, no server blocking) ---
-tick = st_autorefresh(interval=1000, limit=None, key="live_refresh")
+# --- Auto-refresh via JS (zero external dependencies) ---
+# Countdown updates every second client-side; full data reload at configured interval
+_JS_AUTOREFRESH = """
+<script>
+(function() {
+    // Live countdown update (every second, client-side only)
+    function updateCountdown() {
+        var el = document.getElementById('live-countdown');
+        if (!el) return;
+        var target = new Date('2026-03-22T07:00:00Z').getTime();
+        var end = new Date('2026-03-23T15:00:00Z').getTime();
+        var now = Date.now();
+        if (now > end) {
+            el.innerHTML = '\\u{1F534} VOTO CONCLUSO';
+        } else if (now > target) {
+            var rem = Math.floor((end - now) / 1000);
+            var h = Math.floor(rem / 3600);
+            var m = Math.floor((rem %% 3600) / 60);
+            var s = rem %% 60;
+            el.innerHTML = '<span class="live-dot"></span> VOTAZIONE IN CORSO - ' +
+                String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0');
+        } else {
+            var rem = Math.floor((target - now) / 1000);
+            var d = Math.floor(rem / 86400);
+            var h = Math.floor((rem %% 86400) / 3600);
+            var m = Math.floor((rem %% 3600) / 60);
+            var s = rem %% 60;
+            el.innerHTML = '\\u{1F7E1} ' + d + 'g ' +
+                String(h).padStart(2,'0') + ':' + String(m).padStart(2,'0') + ':' + String(s).padStart(2,'0') + ' al voto';
+        }
+        // Update clock
+        var clk = document.getElementById('live-clock');
+        if (clk) clk.textContent = new Date().toLocaleTimeString('it-IT');
+    }
+    setInterval(updateCountdown, 1000);
+    updateCountdown();
+
+    // Full page reload for data refresh (configurable)
+    var refreshMs = %d;
+    if (refreshMs > 0) {
+        setTimeout(function(){ window.parent.location.reload(); }, refreshMs);
+    }
+})();
+</script>
+"""
+tick = int(datetime.now().timestamp())
 
 # --- Custom CSS (mobile-responsive) ---
 st.markdown("""
@@ -147,49 +191,19 @@ with st.sidebar:
     st.caption("Apri il link nel browser, aggiungi a Home Screen per esperienza app-like.")
 
 
-# --- Live Header with animated countdown ---
-now_utc = datetime.now(timezone.utc)
-ref_start = config.REFERENDUM_DATE_START.replace(tzinfo=timezone.utc)
-ref_end = config.REFERENDUM_DATE_END.replace(tzinfo=timezone.utc)
-time_to_start = ref_start - now_utc
-time_to_end = ref_end - now_utc
-
-if time_to_end.total_seconds() < 0:
-    countdown_html = '<span class="countdown-live">\U0001f534 VOTO CONCLUSO</span>'
-    phase = "ended"
-elif time_to_start.total_seconds() < 0:
-    # Voting in progress - show time remaining
-    remaining = time_to_end.total_seconds()
-    hours = int(remaining // 3600)
-    minutes = int((remaining % 3600) // 60)
-    seconds = int(remaining % 60)
-    countdown_html = (
-        f'<span class="live-dot"></span>'
-        f'<span class="countdown-live">VOTAZIONE IN CORSO - '
-        f'Chiusura seggi: {hours:02d}:{minutes:02d}:{seconds:02d}</span>'
-    )
-    phase = "voting"
-else:
-    total_sec = time_to_start.total_seconds()
-    days = int(total_sec // 86400)
-    hours = int((total_sec % 86400) // 3600)
-    minutes = int((total_sec % 3600) // 60)
-    seconds = int(total_sec % 60)
-    countdown_html = (
-        f'<span class="countdown-live">\U0001f7e1 '
-        f'{days}g {hours:02d}:{minutes:02d}:{seconds:02d} al voto</span>'
-    )
-    phase = "pre"
-
-now_str = now_utc.strftime("%H:%M:%S UTC")
-
-st.markdown(f"""
+# --- Live Header with JS-animated countdown (updates every second client-side) ---
+st.markdown("""
 <div class="main-header">
     <h1>\U0001f1ee\U0001f1f9 Referendum Knowledge Graph - Live</h1>
     <p>Riforma della Giustizia (Nordio) | 22-23 Marzo 2026</p>
-    <p>{countdown_html} &nbsp; | &nbsp; \U0001f551 {now_str}</p>
+    <p><span id="live-countdown" class="countdown-live">Caricamento...</span>
+       &nbsp;|&nbsp; \U0001f551 <span id="live-clock">--:--:--</span></p>
 </div>
 """, unsafe_allow_html=True)
+
+# Inject JS for live countdown + periodic data reload
+refresh_ms = data_refresh * 1000
+components.html(_JS_AUTOREFRESH % refresh_ms, height=0)
 
 
 # --- Data Fetching (cached with TTL) ---
@@ -590,4 +604,4 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.caption("Built with Streamlit, NetworkX, Plotly | [GitHub](https://github.com) | Open Source")
+st.caption("Built with Streamlit, NetworkX, Plotly | [GitHub](https://github.com/mfantin/referendum-kgraph) | Open Source")
