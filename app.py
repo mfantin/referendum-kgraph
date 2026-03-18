@@ -22,7 +22,7 @@ st.set_page_config(
     page_title="Referendum KG - Predizione Live",
     page_icon="\U0001f1ee\U0001f1f9",
     layout="wide",
-    initial_sidebar_state="collapsed",
+    initial_sidebar_state="auto",
 )
 
 # --- CSS (rendered once, never refreshed) ---
@@ -34,6 +34,18 @@ st.markdown("""
     #MainMenu, header[data-testid="stHeader"] button[kind="header"] {
         display: none !important;
         visibility: hidden !important;
+    }
+    /* Replace sidebar >> arrows with "CLICK PER CONTROLLI" */
+    button[data-testid="stSidebarCollapsedControl"] svg {
+        display: none !important;
+    }
+    button[data-testid="stSidebarCollapsedControl"]::after {
+        content: "CLICK PER CONTROLLI";
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #0f3460;
+        letter-spacing: 0.05em;
+        white-space: nowrap;
     }
     @media (max-width: 768px) {
         .block-container { padding: 0.5rem 0.8rem !important; }
@@ -159,13 +171,6 @@ with st.sidebar:
     st.markdown("---")
     st.caption("**Come usare su smartphone:**")
     st.caption("Apri il link nel browser, aggiungi a Home Screen per esperienza app-like.")
-
-# --- Hint for sidebar controls ---
-st.markdown(
-    '<p style="margin:0 0 0.4rem 0; font-size:0.85rem; color:#0f3460; font-weight:700;">'
-    '\u2699\ufe0f Clicca <strong>\u00bb</strong> in alto a sinistra per aprire i <strong>CONTROLLI</strong></p>',
-    unsafe_allow_html=True,
-)
 
 # --- Header with JS countdown (always animated, independent from data refresh) ---
 st.markdown("""
