@@ -85,15 +85,31 @@ st.markdown("""
         font-size: 0.8rem;
         margin-top: 0.8rem;
     }
+    /* Tab styling - multiple selectors for Streamlit version compatibility */
     .stTabs [data-baseweb="tab-list"] { gap: 6px; }
-    .stTabs [data-baseweb="tab"] {
-        border-radius: 8px 8px 0 0;
-        padding: 0.6rem 1.4rem;
+    .stTabs [data-baseweb="tab-list"] button {
         font-size: 1.15rem !important;
         font-weight: 600 !important;
+        padding: 0.6rem 1.4rem !important;
+        border-radius: 8px 8px 0 0 !important;
+    }
+    .stTabs [data-baseweb="tab-list"] button[aria-selected="true"] {
+        font-size: 1.25rem !important;
+        font-weight: 700 !important;
+    }
+    .stTabs [data-baseweb="tab"] {
+        font-size: 1.15rem !important;
+        font-weight: 600 !important;
+        padding: 0.6rem 1.4rem !important;
+        border-radius: 8px 8px 0 0 !important;
     }
     .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        font-size: 1.2rem !important;
+        font-size: 1.25rem !important;
+        font-weight: 700 !important;
+    }
+    div[data-baseweb="tab-list"] button p {
+        font-size: 1.15rem !important;
+        font-weight: 600 !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -322,13 +338,16 @@ def live_dashboard():
         pcol1, pcol2 = st.columns([1, 1])
 
         with pcol1:
-            fig_gauge = go.Figure()
-
-            fig_gauge.add_trace(go.Indicator(
-                mode="gauge+number+delta",
+            # --- Gauge SI ---
+            st.markdown(
+                f"<h4 style='color:{config.COLOR_SI}; text-align:center; margin-bottom:0;'>"
+                f"\u2705 SI (Approvare la riforma)</h4>",
+                unsafe_allow_html=True,
+            )
+            fig_si = go.Figure(go.Indicator(
+                mode="gauge+number",
                 value=prediction.si_probability * 100,
-                title={"text": "SI (Approvare la riforma)", "font": {"size": 18, "color": config.COLOR_SI}},
-                number={"suffix": "%", "font": {"size": 32, "color": config.COLOR_SI}},
+                number={"suffix": "%", "font": {"size": 36, "color": config.COLOR_SI}},
                 gauge={
                     "axis": {"range": [0, 100], "tickwidth": 1, "dtick": 10},
                     "bar": {"color": config.COLOR_SI, "thickness": 0.75},
@@ -344,14 +363,23 @@ def live_dashboard():
                         "thickness": 0.85, "value": 50,
                     },
                 },
-                domain={"x": [0, 1], "y": [0.55, 1]},
             ))
+            fig_si.update_layout(
+                height=220, margin=dict(t=10, b=10, l=30, r=30),
+                paper_bgcolor="rgba(0,0,0,0)",
+            )
+            st.plotly_chart(fig_si, use_container_width=True)
 
-            fig_gauge.add_trace(go.Indicator(
+            # --- Gauge NO ---
+            st.markdown(
+                f"<h4 style='color:{config.COLOR_NO}; text-align:center; margin-bottom:0;'>"
+                f"\u274c NO (Respingere la riforma)</h4>",
+                unsafe_allow_html=True,
+            )
+            fig_no = go.Figure(go.Indicator(
                 mode="gauge+number",
                 value=prediction.no_probability * 100,
-                title={"text": "NO (Respingere la riforma)", "font": {"size": 18, "color": config.COLOR_NO}},
-                number={"suffix": "%", "font": {"size": 32, "color": config.COLOR_NO}},
+                number={"suffix": "%", "font": {"size": 36, "color": config.COLOR_NO}},
                 gauge={
                     "axis": {"range": [0, 100], "tickwidth": 1, "dtick": 10},
                     "bar": {"color": config.COLOR_NO, "thickness": 0.75},
@@ -367,14 +395,12 @@ def live_dashboard():
                         "thickness": 0.85, "value": 50,
                     },
                 },
-                domain={"x": [0, 1], "y": [0, 0.45]},
             ))
-
-            fig_gauge.update_layout(
-                height=420, margin=dict(t=30, b=10, l=30, r=30),
+            fig_no.update_layout(
+                height=220, margin=dict(t=10, b=10, l=30, r=30),
                 paper_bgcolor="rgba(0,0,0,0)",
             )
-            st.plotly_chart(fig_gauge, use_container_width=True)
+            st.plotly_chart(fig_no, use_container_width=True)
 
         with pcol2:
             if polls:
