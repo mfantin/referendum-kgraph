@@ -35,33 +35,20 @@ st.markdown("""
         display: none !important;
         visibility: hidden !important;
     }
-    /* Floating CONTROLLI label - stacked above sidebar arrow */
-    .controls-hint {
-        position: fixed;
-        top: 2px;
-        left: 4px;
-        z-index: 999999;
-        font-size: 1.05rem;
+    /* "CONTROLLI" text above the native sidebar toggle */
+    [data-testid="collapsedControl"] {
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+    }
+    [data-testid="collapsedControl"]::before {
+        content: "CONTROLLI";
+        font-size: 0.95rem;
         font-weight: 800;
         color: #0f3460;
-        letter-spacing: 0.1em;
+        letter-spacing: 0.08em;
+        margin-bottom: 2px;
         cursor: pointer;
-        opacity: 0.9;
-        transition: opacity 0.2s;
-        text-align: center;
-        line-height: 1.2;
-        padding: 2px 6px;
-    }
-    .controls-hint:hover { opacity: 1; color: #1a5276; }
-    .controls-hint .arrow {
-        display: block;
-        font-size: 0.85rem;
-        margin-top: 1px;
-        letter-spacing: 0;
-    }
-    /* Push sidebar toggle down to make room */
-    button[data-testid="stSidebarCollapsedControl"] {
-        margin-top: 38px !important;
     }
     @media (max-width: 768px) {
         .block-container { padding: 0.5rem 0.8rem !important; }
@@ -148,16 +135,6 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
-
-# Floating "CONTROLLI" label with arrows centered below
-st.markdown(
-    '<div class="controls-hint" onclick="'
-    "var btn = window.parent.document.querySelector("
-    "'button[data-testid=\\\"stSidebarCollapsedControl\\\"]');"
-    "if(btn) btn.click();"
-    '">CONTROLLI<span class="arrow">\u00bb</span></div>',
-    unsafe_allow_html=True,
-)
 
 # --- Session State ---
 if "prediction_history" not in st.session_state:
