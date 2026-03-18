@@ -42,8 +42,13 @@ components.html("""
 # --- CSS (rendered once, never refreshed) ---
 st.markdown("""
 <style>
-    /* Hide Streamlit Deploy button only */
-    .stDeployButton {
+    /* Hide Streamlit Deploy button */
+    .stDeployButton,
+    .stAppDeployButton,
+    [data-testid="stAppDeployButton"],
+    button[title="Deploy"],
+    header[data-testid="stHeader"] a,
+    .stMainMenu {
         display: none !important;
         visibility: hidden !important;
     }
