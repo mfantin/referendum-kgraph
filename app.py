@@ -28,10 +28,8 @@ st.set_page_config(
 # --- CSS (rendered once, never refreshed) ---
 st.markdown("""
 <style>
-    /* Hide Streamlit Deploy button */
-    .stDeployButton, [data-testid="stStatusWidget"],
-    button[data-testid="stBaseButton-headerNoPadding"],
-    #MainMenu, header[data-testid="stHeader"] button[kind="header"] {
+    /* Hide Streamlit Deploy button only */
+    .stDeployButton {
         display: none !important;
         visibility: hidden !important;
     }
