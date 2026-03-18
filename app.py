@@ -141,10 +141,15 @@ st.markdown("""
         font-size: 0.8rem;
         margin-top: 0.8rem;
     }
-    .stTabs [data-baseweb="tab-list"] { gap: 4px; }
+    .stTabs [data-baseweb="tab-list"] { gap: 6px; }
     .stTabs [data-baseweb="tab"] {
         border-radius: 8px 8px 0 0;
-        padding: 0.4rem 1rem;
+        padding: 0.6rem 1.4rem;
+        font-size: 1.15rem !important;
+        font-weight: 600 !important;
+    }
+    .stTabs [data-baseweb="tab"][aria-selected="true"] {
+        font-size: 1.2rem !important;
     }
 </style>
 """, unsafe_allow_html=True)
@@ -168,8 +173,8 @@ with st.sidebar:
     st.title("\u2699\ufe0f Controlli")
 
     st.markdown("### Aggiornamento")
-    data_refresh = st.slider("Refresh dati (sec)", 60, 600, 300, step=30,
-                             help="I dati RSS vengono cachati per questo intervallo")
+    data_refresh = st.slider("Refresh pagina (sec)", 1, 600, 5, step=1,
+                             help="Intervallo di refresh completo della pagina (countdown sempre live)")
 
     st.markdown("### Visualizzazione")
     show_articles = st.checkbox("Articoli recenti", True)
@@ -184,7 +189,7 @@ with st.sidebar:
     st.caption(
         "**Metodologia**: aggregazione ponderata di sondaggi, "
         "forza partitica, sentiment media e momentum. "
-        "Refresh UI ogni secondo, dati ogni 5 min."
+        "Countdown live via JS, refresh configurabile da 1s."
     )
     st.markdown("---")
     st.caption("**Come usare su smartphone:**")
@@ -350,7 +355,7 @@ with tab_pred:
         fig_gauge.add_trace(go.Indicator(
             mode="gauge+number+delta",
             value=prediction.si_probability * 100,
-            title={"text": "SI (Approvare)", "font": {"size": 18, "color": config.COLOR_SI}},
+            title={"text": "SI (Approvare la riforma)", "font": {"size": 18, "color": config.COLOR_SI}},
             number={"suffix": "%", "font": {"size": 32, "color": config.COLOR_SI}},
             gauge={
                 "axis": {"range": [0, 100], "tickwidth": 1, "dtick": 10},
@@ -373,7 +378,7 @@ with tab_pred:
         fig_gauge.add_trace(go.Indicator(
             mode="gauge+number",
             value=prediction.no_probability * 100,
-            title={"text": "NO (Respingere)", "font": {"size": 18, "color": config.COLOR_NO}},
+            title={"text": "NO (Respingere la riforma)", "font": {"size": 18, "color": config.COLOR_NO}},
             number={"suffix": "%", "font": {"size": 32, "color": config.COLOR_NO}},
             gauge={
                 "axis": {"range": [0, 100], "tickwidth": 1, "dtick": 10},
