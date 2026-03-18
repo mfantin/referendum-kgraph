@@ -25,6 +25,20 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
+# --- Viewport meta tag: prevent unwanted zoom on mobile ---
+components.html("""
+<script>
+(function() {
+    if (!document.querySelector('meta[name="viewport"]')) {
+        var meta = document.createElement('meta');
+        meta.name = 'viewport';
+        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+        window.parent.document.head.appendChild(meta);
+    }
+})();
+</script>
+""", height=0)
+
 # --- CSS (rendered once, never refreshed) ---
 st.markdown("""
 <style>
@@ -33,14 +47,8 @@ st.markdown("""
         display: none !important;
         visibility: hidden !important;
     }
-    @media (max-width: 768px) {
-        .block-container { padding: 0.5rem 0.8rem !important; }
-        .main-header h1 { font-size: 1.1rem !important; }
-        .main-header p { font-size: 0.8rem !important; }
-        div[data-testid="stMetric"] { padding: 0.4rem !important; }
-        div[data-testid="stMetric"] label { font-size: 0.75rem !important; }
-        div[data-testid="stMetric"] div[data-testid="stMetricValue"] { font-size: 1.3rem !important; }
-    }
+
+    /* === DESKTOP (default) === */
     .main-header {
         background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
         padding: 1.2rem 1.5rem;
@@ -90,7 +98,7 @@ st.markdown("""
         font-size: 0.8rem;
         margin-top: 0.8rem;
     }
-    /* Tab styling - multiple selectors for Streamlit version compatibility */
+    /* Tab styling desktop */
     .stTabs [data-baseweb="tab-list"] { gap: 6px; }
     .stTabs [data-baseweb="tab-list"] button {
         font-size: 1.15rem !important;
@@ -102,19 +110,111 @@ st.markdown("""
         font-size: 1.25rem !important;
         font-weight: 700 !important;
     }
-    .stTabs [data-baseweb="tab"] {
-        font-size: 1.15rem !important;
-        font-weight: 600 !important;
-        padding: 0.6rem 1.4rem !important;
-        border-radius: 8px 8px 0 0 !important;
-    }
-    .stTabs [data-baseweb="tab"][aria-selected="true"] {
-        font-size: 1.25rem !important;
-        font-weight: 700 !important;
-    }
     div[data-baseweb="tab-list"] button p {
         font-size: 1.15rem !important;
         font-weight: 600 !important;
+    }
+
+    /* === MOBILE (< 768px) === */
+    @media (max-width: 768px) {
+        /* Prevent overflow and horizontal scroll */
+        .main .block-container {
+            padding: 0.4rem 0.6rem !important;
+            max-width: 100% !important;
+            overflow-x: hidden !important;
+        }
+        .stApp {
+            overflow-x: hidden !important;
+        }
+
+        /* Header compact */
+        .main-header {
+            padding: 0.8rem 1rem;
+            border-radius: 8px;
+            margin-bottom: 0.5rem;
+        }
+        .main-header h1 { font-size: 1rem !important; }
+        .main-header p { font-size: 0.7rem !important; }
+        .countdown-live { padding: 0.2rem 0.5rem; font-size: 0.75rem; }
+
+        /* Metrics: 2x2 grid instead of 4 columns */
+        div[data-testid="stHorizontalBlock"] {
+            flex-wrap: wrap !important;
+        }
+        div[data-testid="stHorizontalBlock"] > div[data-testid="stColumn"] {
+            flex: 0 0 48% !important;
+            max-width: 48% !important;
+            margin-bottom: 0.3rem;
+        }
+        div[data-testid="stMetric"] {
+            padding: 0.4rem !important;
+        }
+        div[data-testid="stMetric"] label {
+            font-size: 0.65rem !important;
+        }
+        div[data-testid="stMetric"] div[data-testid="stMetricValue"] {
+            font-size: 1.1rem !important;
+        }
+
+        /* Tabs: scrollable, compact */
+        .stTabs [data-baseweb="tab-list"] {
+            gap: 2px;
+            overflow-x: auto !important;
+            flex-wrap: nowrap !important;
+            -webkit-overflow-scrolling: touch;
+        }
+        .stTabs [data-baseweb="tab-list"] button {
+            font-size: 0.75rem !important;
+            padding: 0.4rem 0.6rem !important;
+            white-space: nowrap !important;
+            min-width: auto !important;
+        }
+        div[data-baseweb="tab-list"] button p {
+            font-size: 0.75rem !important;
+        }
+
+        /* Plotly charts: full width, prevent overflow */
+        .js-plotly-plot, .plotly {
+            width: 100% !important;
+            max-width: 100% !important;
+        }
+        .js-plotly-plot .plot-container {
+            max-width: 100% !important;
+        }
+
+        /* Gauge labels */
+        .gauge-label {
+            font-size: 0.9rem !important;
+        }
+
+        /* Columns inside tabs: stack vertically */
+        div[data-testid="stHorizontalBlock"]:not(:first-child) {
+            flex-direction: column !important;
+        }
+        div[data-testid="stHorizontalBlock"]:not(:first-child) > div[data-testid="stColumn"] {
+            flex: 0 0 100% !important;
+            max-width: 100% !important;
+        }
+
+        /* Expanders compact */
+        details summary {
+            font-size: 0.8rem !important;
+        }
+
+        /* Disclaimer compact */
+        .disclaimer {
+            font-size: 0.7rem;
+            padding: 0.5rem;
+        }
+
+        /* Dataframe scroll */
+        div[data-testid="stDataFrame"] {
+            overflow-x: auto !important;
+            max-width: 100% !important;
+        }
+
+        /* Footer compact */
+        .footer-mobile { font-size: 0.7rem; }
     }
 </style>
 """, unsafe_allow_html=True)
@@ -328,8 +428,11 @@ def live_dashboard():
 
     # --- Tab 1: Knowledge Graph ---
     with tab_kg:
+        st.caption("Tocca e trascina per esplorare il grafo. Pizzica per zoom.")
         fig_kg = graph_to_plotly(graph)
-        st.plotly_chart(fig_kg, use_container_width=True)
+        fig_kg.update_layout(height=500)
+        st.plotly_chart(fig_kg, use_container_width=True,
+                        config={"scrollZoom": True, "displayModeBar": False})
 
         stats = get_graph_stats(graph)
         scol1, scol2, scol3, scol4 = st.columns(4)
