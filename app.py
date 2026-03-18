@@ -28,16 +28,21 @@ st.set_page_config(
 # --- CSS (rendered once, never refreshed) ---
 st.markdown("""
 <style>
-    /* Label "CONTROLLI" next to sidebar toggle arrow */
-    button[data-testid="stSidebarCollapsedControl"]::after {
-        content: "CONTROLLI";
-        font-size: 0.75rem;
+    /* Floating CONTROLLI label */
+    .controls-hint {
+        position: fixed;
+        top: 9px;
+        left: 48px;
+        z-index: 999999;
+        font-size: 0.8rem;
         font-weight: 700;
         color: #0f3460;
-        letter-spacing: 0.05em;
-        margin-left: 4px;
-        vertical-align: middle;
+        letter-spacing: 0.08em;
+        cursor: pointer;
+        opacity: 0.85;
+        transition: opacity 0.2s;
     }
+    .controls-hint:hover { opacity: 1; }
     @media (max-width: 768px) {
         .block-container { padding: 0.5rem 0.8rem !important; }
         .main-header h1 { font-size: 1.1rem !important; }
@@ -123,6 +128,16 @@ st.markdown("""
     }
 </style>
 """, unsafe_allow_html=True)
+
+# Floating "CONTROLLI" label next to sidebar arrow
+st.markdown(
+    '<div class="controls-hint" onclick="'
+    "var btn = window.parent.document.querySelector("
+    "'button[data-testid=\\\"stSidebarCollapsedControl\\\"]');"
+    "if(btn) btn.click();"
+    '">CONTROLLI \u25b6</div>',
+    unsafe_allow_html=True,
+)
 
 # --- Session State ---
 if "prediction_history" not in st.session_state:
@@ -601,7 +616,9 @@ st.markdown("""
     feed RSS pubblici, sondaggi pre-esistenti e analisi del sentiment con euristiche semplici.
     Non sostituisce analisi elettorali professionali.
     Nessun quorum richiesto per questo referendum confermativo.
+    <br><br>
+    <strong>\u00a9 2026 Mauro Fantin.</strong> Tutti i diritti riservati.
+    Built with Streamlit, NetworkX, Plotly |
+    <a href="https://github.com/mfantin/referendum-kgraph" target="_blank">GitHub</a> | Open Source
 </div>
 """, unsafe_allow_html=True)
-
-st.caption("Built with Streamlit, NetworkX, Plotly | [GitHub](https://github.com/mfantin/referendum-kgraph) | Open Source")
