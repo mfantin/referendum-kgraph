@@ -1,0 +1,307 @@
+"""
+Knowledge Graph builder: constructs and visualizes the referendum KG.
+"""
+
+import networkx as nx
+import plotly.graph_objects as go
+import numpy as np
+
+import config
+from data_fetcher import Article
+
+
+def build_graph(articles: list[Article], polls: list[dict]) -> nx.DiGraph:
+    """Build the complete knowledge graph from articles and polls."""
+    G = nx.DiGraph()
+
+    _add_central_node(G)
+    _add_outcome_nodes(G)
+    _add_topic_nodes(G)
+    _add_party_nodes(G)
+    _add_politician_nodes(G)
+    _add_poll_nodes(G, polls)
+    _add_article_nodes(G, articles)
+    _add_sentiment_aggregate(G, articles)
+
+    return G
+
+
+def _add_central_node(G: nx.DiGraph):
+    G.add_node("Referendum", type="referendum", color=config.NODE_COLORS["referendum"],
+               label="Referendum\n22-23 Mar 2026", size=50)
+
+
+def _add_outcome_nodes(G: nx.DiGraph):
+    G.add_node("SI", type="outcome", color=config.NODE_COLORS["outcome_si"],
+               label="SI (Approvare)", size=40)
+    G.add_node("NO", type="outcome", color=config.NODE_COLORS["outcome_no"],
+               label="NO (Respingere)", size=40)
+    G.add_edge("Referendum", "SI", relationship="POSSIBLE_OUTCOME", weight=0.5)
+    G.add_edge("Referendum", "NO", relationship="POSSIBLE_OUTCOME", weight=0.5)
+
+
+def _add_topic_nodes(G: nx.DiGraph):
+    topics = [
+        ("Separazione Carriere", "Separazione tra giudici e PM"),
+        ("Sdoppiamento CSM", "Due CSM distinti per giudicanti e requirenti"),
+        ("Sorteggio Membri", "Selezione per sorteggio dei membri laici"),
+        ("Alta Corte Disciplinare", "Nuova corte per procedimenti disciplinari"),
+    ]
+    for topic_name, description in topics:
+        G.add_node(topic_name, type="topic", color=config.NODE_COLORS["topic"],
+                   label=topic_name, description=description, size=25)
+        G.add_edge("Referendum", topic_name, relationship="CONTAINS_TOPIC", weight=0.8)
+
+
+def _add_party_nodes(G: nx.DiGraph):
+    for party_id, party_data in config.PARTY_POSITIONS.items():
+        position = party_data["position"]
+        color_key = "party_si" if position == "SI" else "party_no"
+        G.add_node(
+            party_id,
+            type="party",
+            color=config.NODE_COLORS[color_key],
+            label=f"{party_data['name']}\n({position})",
+            full_name=party_data["name"],
+            position=position,
+            support_pct=party_data["estimated_support_pct"],
+            size=max(15, party_data["estimated_support_pct"]),
+        )
+        target = "SI" if position == "SI" else "NO"
+        G.add_edge(party_id, target,
+                   relationship="SUPPORTS",
+                   weight=party_data["estimated_support_pct"] / 100)
+
+
+def _add_politician_nodes(G: nx.DiGraph):
+    for party_id, party_data in config.PARTY_POSITIONS.items():
+        for figure in party_data["key_figures"]:
+            G.add_node(
+                figure,
+                type="politician",
+                color=config.NODE_COLORS["politician"],
+                label=figure,
+                party=party_id,
+                position=party_data["position"],
+                size=20,
+            )
+            G.add_edge(figure, party_id, relationship="MEMBER_OF", weight=0.9)
+
+
+def _add_poll_nodes(G: nx.DiGraph, polls: list[dict]):
+    for i, poll in enumerate(polls[:10]):  # Limit to latest 10
+        node_id = f"Poll_{poll['source']}_{poll['date']}"
+        si = poll["si_pct"]
+        no = poll["no_pct"]
+        G.add_node(
+            node_id,
+            type="poll",
+            color=config.NODE_COLORS["poll"],
+            label=f"{poll['source']}\n{poll['date']}\nSI:{si}% NO:{no}%",
+            si_pct=si,
+            no_pct=no,
+            date=poll["date"],
+            source=poll["source"],
+            size=20,
+        )
+        # Edge weight proportional to SI percentage
+        G.add_edge(node_id, "SI", relationship="INDICATES", weight=si / 100)
+        G.add_edge(node_id, "NO", relationship="INDICATES", weight=no / 100)
+        G.add_edge(node_id, "Referendum", relationship="MEASURES", weight=0.7)
+
+
+def _add_article_nodes(G: nx.DiGraph, articles: list[Article]):
+    # Add only top articles to keep graph readable
+    top_articles = sorted(articles, key=lambda a: a.relevance, reverse=True)[:15]
+
+    for i, article in enumerate(top_articles):
+        node_id = f"Art_{i}_{article.source[:10]}"
+        G.add_node(
+            node_id,
+            type="article",
+            color=config.NODE_COLORS["article"],
+            label=article.title[:40] + "...",
+            full_title=article.title,
+            source=article.source,
+            url=article.url,
+            sentiment=article.sentiment_direction,
+            sentiment_score=article.sentiment_score,
+            relevance=article.relevance,
+            size=12,
+        )
+
+        # Link to outcome based on sentiment
+        if article.sentiment_direction == "SI":
+            G.add_edge(node_id, "SI", relationship="FAVORS", weight=abs(article.sentiment_score) * 0.5)
+        elif article.sentiment_direction == "NO":
+            G.add_edge(node_id, "NO", relationship="FAVORS", weight=abs(article.sentiment_score) * 0.5)
+
+        # Link to mentioned parties
+        for party in article.mentioned_parties:
+            if party in G:
+                G.add_edge(node_id, party, relationship="MENTIONS", weight=0.3)
+
+        # Link to mentioned politicians
+        for politician in article.mentioned_entities:
+            if politician in G:
+                G.add_edge(node_id, politician, relationship="MENTIONS", weight=0.3)
+
+
+def _add_sentiment_aggregate(G: nx.DiGraph, articles: list[Article]):
+    """Add aggregate sentiment signal nodes."""
+    if not articles:
+        return
+
+    si_articles = [a for a in articles if a.sentiment_direction == "SI"]
+    no_articles = [a for a in articles if a.sentiment_direction == "NO"]
+    neutral_articles = [a for a in articles if a.sentiment_direction == "NEUTRAL"]
+
+    total = len(articles)
+    si_pct = len(si_articles) / total * 100 if total > 0 else 0
+    no_pct = len(no_articles) / total * 100 if total > 0 else 0
+
+    G.add_node(
+        "Sentiment_Media",
+        type="sentiment",
+        color=config.COLOR_SI if si_pct > no_pct else config.COLOR_NO,
+        label=f"Sentiment Media\nSI:{si_pct:.0f}% NO:{no_pct:.0f}%",
+        si_pct=si_pct,
+        no_pct=no_pct,
+        neutral_pct=100 - si_pct - no_pct,
+        total_articles=total,
+        size=30,
+    )
+    G.add_edge("Sentiment_Media", "SI", relationship="INDICATES", weight=si_pct / 100)
+    G.add_edge("Sentiment_Media", "NO", relationship="INDICATES", weight=no_pct / 100)
+    G.add_edge("Sentiment_Media", "Referendum", relationship="MEASURES", weight=0.6)
+
+
+def get_graph_stats(G: nx.DiGraph) -> dict:
+    """Get graph statistics by node type."""
+    stats = {"total_nodes": G.number_of_nodes(), "total_edges": G.number_of_edges()}
+    type_counts = {}
+    for _, data in G.nodes(data=True):
+        t = data.get("type", "unknown")
+        type_counts[t] = type_counts.get(t, 0) + 1
+    stats["by_type"] = type_counts
+    return stats
+
+
+def graph_to_plotly(G: nx.DiGraph) -> go.Figure:
+    """Convert the knowledge graph to an interactive Plotly figure."""
+    if G.number_of_nodes() == 0:
+        fig = go.Figure()
+        fig.add_annotation(text="Nessun dato disponibile", x=0.5, y=0.5,
+                          showarrow=False, font=dict(size=20))
+        return fig
+
+    # Use spring layout with fixed seed for reproducibility
+    pos = nx.spring_layout(G, seed=config.GRAPH_LAYOUT_SEED, k=2.5, iterations=50)
+
+    # --- Edge traces ---
+    edge_traces = []
+    for edge in G.edges(data=True):
+        x0, y0 = pos[edge[0]]
+        x1, y1 = pos[edge[1]]
+        rel = edge[2].get("relationship", "")
+        weight = edge[2].get("weight", 0.3)
+
+        # Color edges by type
+        if rel in ("SUPPORTS", "FAVORS"):
+            target_type = G.nodes.get(edge[1], {}).get("type", "")
+            if G.nodes.get(edge[1], {}).get("color") == config.NODE_COLORS["outcome_si"]:
+                edge_color = "rgba(46, 204, 113, 0.4)"
+            else:
+                edge_color = "rgba(231, 76, 60, 0.4)"
+        elif rel == "INDICATES":
+            edge_color = "rgba(243, 156, 18, 0.4)"
+        elif rel == "MENTIONS":
+            edge_color = "rgba(52, 152, 219, 0.2)"
+        else:
+            edge_color = "rgba(149, 165, 166, 0.3)"
+
+        edge_traces.append(go.Scatter(
+            x=[x0, x1, None], y=[y0, y1, None],
+            line=dict(width=max(1, weight * 4), color=edge_color),
+            hoverinfo="none",
+            mode="lines",
+            showlegend=False,
+        ))
+
+    # --- Node traces (grouped by type for legend) ---
+    type_groups = {}
+    for node, data in G.nodes(data=True):
+        t = data.get("type", "unknown")
+        if t not in type_groups:
+            type_groups[t] = {"x": [], "y": [], "text": [], "hover": [],
+                              "color": [], "size": []}
+        x, y = pos[node]
+        type_groups[t]["x"].append(x)
+        type_groups[t]["y"].append(y)
+        type_groups[t]["text"].append(data.get("label", node)[:30])
+        type_groups[t]["color"].append(data.get("color", "#95a5a6"))
+        type_groups[t]["size"].append(data.get("size", 15))
+
+        # Build hover text
+        hover_parts = [f"<b>{data.get('label', node)}</b>", f"Tipo: {t}"]
+        if t == "poll":
+            hover_parts.append(f"SI: {data.get('si_pct', '?')}% | NO: {data.get('no_pct', '?')}%")
+        elif t == "article":
+            hover_parts.append(f"Fonte: {data.get('source', '?')}")
+            hover_parts.append(f"Sentiment: {data.get('sentiment', '?')}")
+        elif t == "party":
+            hover_parts.append(f"Posizione: {data.get('position', '?')}")
+            hover_parts.append(f"Consenso stimato: {data.get('support_pct', '?')}%")
+        type_groups[t]["hover"].append("<br>".join(hover_parts))
+
+    TYPE_LABELS = {
+        "referendum": "Referendum",
+        "outcome": "Esiti",
+        "topic": "Temi",
+        "party": "Partiti",
+        "politician": "Politici",
+        "poll": "Sondaggi",
+        "article": "Articoli",
+        "sentiment": "Sentiment",
+    }
+
+    node_traces = []
+    for t, group in type_groups.items():
+        node_traces.append(go.Scatter(
+            x=group["x"], y=group["y"],
+            mode="markers+text",
+            name=TYPE_LABELS.get(t, t.capitalize()),
+            text=group["text"],
+            textposition="top center",
+            textfont=dict(size=9, color="#2c3e50"),
+            hovertext=group["hover"],
+            hoverinfo="text",
+            marker=dict(
+                color=group["color"],
+                size=group["size"],
+                line=dict(width=1.5, color="#2c3e50"),
+                opacity=0.9,
+            ),
+        ))
+
+    fig = go.Figure(data=edge_traces + node_traces)
+    fig.update_layout(
+        showlegend=True,
+        legend=dict(
+            orientation="h",
+            yanchor="bottom",
+            y=1.02,
+            xanchor="center",
+            x=0.5,
+            font=dict(size=11),
+        ),
+        hovermode="closest",
+        margin=dict(b=10, l=10, r=10, t=40),
+        xaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        yaxis=dict(showgrid=False, zeroline=False, showticklabels=False),
+        plot_bgcolor="#fafafa",
+        paper_bgcolor="#fafafa",
+        height=600,
+    )
+
+    return fig
