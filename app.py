@@ -28,21 +28,41 @@ st.set_page_config(
 # --- CSS (rendered once, never refreshed) ---
 st.markdown("""
 <style>
-    /* Floating CONTROLLI label */
+    /* Hide Streamlit Deploy button */
+    .stDeployButton, [data-testid="stStatusWidget"],
+    button[data-testid="stBaseButton-headerNoPadding"],
+    #MainMenu, header[data-testid="stHeader"] button[kind="header"] {
+        display: none !important;
+        visibility: hidden !important;
+    }
+    /* Floating CONTROLLI label - stacked above sidebar arrow */
     .controls-hint {
         position: fixed;
-        top: 9px;
-        left: 48px;
+        top: 2px;
+        left: 4px;
         z-index: 999999;
-        font-size: 0.8rem;
-        font-weight: 700;
+        font-size: 1.05rem;
+        font-weight: 800;
         color: #0f3460;
-        letter-spacing: 0.08em;
+        letter-spacing: 0.1em;
         cursor: pointer;
-        opacity: 0.85;
+        opacity: 0.9;
         transition: opacity 0.2s;
+        text-align: center;
+        line-height: 1.2;
+        padding: 2px 6px;
     }
-    .controls-hint:hover { opacity: 1; }
+    .controls-hint:hover { opacity: 1; color: #1a5276; }
+    .controls-hint .arrow {
+        display: block;
+        font-size: 0.85rem;
+        margin-top: 1px;
+        letter-spacing: 0;
+    }
+    /* Push sidebar toggle down to make room */
+    button[data-testid="stSidebarCollapsedControl"] {
+        margin-top: 38px !important;
+    }
     @media (max-width: 768px) {
         .block-container { padding: 0.5rem 0.8rem !important; }
         .main-header h1 { font-size: 1.1rem !important; }
@@ -129,13 +149,13 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
-# Floating "CONTROLLI" label next to sidebar arrow
+# Floating "CONTROLLI" label with arrows centered below
 st.markdown(
     '<div class="controls-hint" onclick="'
     "var btn = window.parent.document.querySelector("
     "'button[data-testid=\\\"stSidebarCollapsedControl\\\"]');"
     "if(btn) btn.click();"
-    '">CONTROLLI \u25b6</div>',
+    '">CONTROLLI<span class="arrow">\u00bb</span></div>',
     unsafe_allow_html=True,
 )
 
