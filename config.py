@@ -230,9 +230,14 @@ SENTIMENT_SI = [
     "sì in vantaggio", "sì avanti", "cresce il sì",
     "consenso per il sì", "vittoria del sì",
     "sondaggi favorevoli", "trend positivo",
+    # Affluenza e partecipazione pro-SI
+    "alta affluenza", "affluenza alta", "grande partecipazione",
+    "mobilitazione", "elettori ai seggi", "code ai seggi",
+    "quorum raggiunto", "partecipazione record",
     # Inglese
     "approve", "support", "in favor", "reform needed",
     "yes vote", "vote yes", "pro reform",
+    "high turnout", "strong turnout",
 ]
 
 SENTIMENT_NO = [
@@ -274,9 +279,14 @@ SENTIMENT_NO = [
     "no in vantaggio", "no avanti", "cresce il no",
     "consenso per il no", "vittoria del no",
     "affluenza bassa", "astensione", "disaffezione",
+    # Affluenza e partecipazione pro-NO
+    "bassa affluenza", "affluenza bassa", "scarsa partecipazione",
+    "astensionismo", "diserzione", "seggi vuoti", "seggi deserti",
+    "boicottare", "boicottaggio", "non voto",
     # Inglese
     "reject", "oppose", "against", "dangerous reform",
     "no vote", "vote no", "anti reform", "threat to democracy",
+    "low turnout", "voter apathy",
 ]
 
 # --- Entity Detection Keywords ---
@@ -332,3 +342,36 @@ SIGNAL_WEIGHTS = {
 
 # Historical referendum poll error (Italy 2016: ~13 points)
 HISTORICAL_POLL_ERROR = 0.13
+
+# --- Exit Poll Configuration ---
+EXIT_POLL_AVAILABLE_AFTER = datetime(2026, 3, 23, 15, 0)  # After voting ends
+
+EXIT_POLL_KEYWORDS = [
+    "exit poll", "exit-poll", "exitpoll",
+    "prime proiezioni", "proiezioni", "proiezione",
+    "prime stime", "stima", "stime di voto",
+    "risultati parziali", "dati parziali",
+    "spoglio", "scrutinio", "primi risultati",
+    "consorzio opinio", "opinio", "quorum/youtrend",
+    "youtrend", "swg exit", "tecnè exit", "piepoli",
+    "instant poll", "primi dati reali",
+    "exit poll results", "early results", "preliminary results",
+]
+
+EXIT_POLL_SOURCES = [
+    "Consorzio Opinio (Rai)",
+    "Quorum/YouTrend (Sky TG24)",
+    "Tecnè (Rete 4/Mediaset)",
+    "SWG (La7)",
+    "Istituto Piepoli (Italia 1)",
+    "EMG Different",
+]
+
+# Weight for exit poll signal (overrides polls when available)
+SIGNAL_WEIGHTS_WITH_EXIT_POLL = {
+    "exit_poll": 0.50,
+    "polls": 0.15,
+    "party_strength": 0.10,
+    "media_sentiment": 0.15,
+    "momentum": 0.10,
+}

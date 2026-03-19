@@ -16,6 +16,7 @@ from data_fetcher import fetch_all_feeds, get_all_polls
 from kg_builder import build_graph, graph_to_plotly, get_graph_stats
 from predictor import predict
 from source_discovery import discover_sources, get_discovery_stats
+from exit_poll import collect_exit_polls, is_exit_poll_time, aggregate_exit_polls
 
 # --- Page Config ---
 st.set_page_config(
@@ -360,9 +361,12 @@ def live_dashboard():
         st.error(f"Errore nel caricamento dati: {str(e)}")
         articles, feed_statuses, polls = [], [], config.KNOWN_POLLS
 
+    # --- Collect Exit Polls ---
+    exit_polls = collect_exit_polls(articles) if is_exit_poll_time() else []
+
     # --- Build KG and Predict ---
     graph = build_graph(articles, polls)
-    prediction = predict(articles, polls)
+    prediction = predict(articles, polls, exit_polls)
 
     # Store prediction history
     should_store = (
@@ -423,9 +427,10 @@ def live_dashboard():
     )
 
     # --- Tabs ---
-    tab_kg, tab_pred, tab_party, tab_articles, tab_discovery = st.tabs([
+    tab_kg, tab_pred, tab_exitpoll, tab_party, tab_articles, tab_discovery = st.tabs([
         "\U0001f578\ufe0f Knowledge Graph",
         "\U0001f4ca Predizione",
+        "\U0001f3af Exit Poll",
         "\U0001f3db\ufe0f Partiti",
         "\U0001f4f0 Articoli",
         "\U0001f50d Discovery",
@@ -566,7 +571,159 @@ def live_dashboard():
             )
             st.plotly_chart(fig_timeline, use_container_width=True)
 
-    # --- Tab 3: Partiti ---
+    # --- Tab 3: Exit Poll ---
+    with tab_exitpoll:
+        ep_active = is_exit_poll_time()
+
+        if ep_active and exit_polls:
+            ep_agg = aggregate_exit_polls(exit_polls)
+            si_val = ep_agg["si_pct"]
+            no_val = ep_agg["no_pct"]
+            ep_confidence = ep_agg["confidence"]
+
+            st.markdown(
+                "<div style='text-align:center; padding:0.5rem;'>"
+                "<span class='live-dot'></span> "
+                "<strong style='font-size:1.1rem;'>EXIT POLL LIVE</strong> "
+                f"- {ep_agg['count']} fonti rilevate"
+                "</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            si_val = 50.0
+            no_val = 50.0
+            ep_confidence = 0.0
+
+        epc1, epc2 = st.columns(2)
+
+        with epc1:
+            st.markdown(
+                f"<h4 style='color:{config.COLOR_SI}; text-align:center; margin-bottom:0;'>"
+                f"SI</h4>",
+                unsafe_allow_html=True,
+            )
+            fig_ep_si = go.Figure(go.Indicator(
+                mode="gauge+number+delta" if ep_active and exit_polls else "gauge+number",
+                value=si_val,
+                number={"suffix": "%", "font": {"size": 48, "color": config.COLOR_SI}},
+                delta={"reference": 50, "increasing": {"color": config.COLOR_SI},
+                       "decreasing": {"color": config.COLOR_NO}} if ep_active and exit_polls else None,
+                gauge={
+                    "axis": {"range": [0, 100], "tickwidth": 2, "dtick": 10,
+                             "tickcolor": "#333", "tickfont": {"size": 12}},
+                    "bar": {"color": config.COLOR_SI if ep_active and exit_polls else "#bdc3c7",
+                            "thickness": 0.8},
+                    "bgcolor": "#f0f0f0",
+                    "borderwidth": 2,
+                    "bordercolor": "#ddd",
+                    "steps": [
+                        {"range": [0, 30], "color": "#fadbd8"},
+                        {"range": [30, 45], "color": "#fdebd0"},
+                        {"range": [45, 55], "color": "#fef9e7"},
+                        {"range": [55, 70], "color": "#d5f5e3"},
+                        {"range": [70, 100], "color": "#abebc6"},
+                    ],
+                    "threshold": {
+                        "line": {"color": "#2c3e50", "width": 4},
+                        "thickness": 0.9, "value": 50,
+                    },
+                },
+            ))
+            fig_ep_si.update_layout(
+                height=280, margin=dict(t=30, b=10, l=30, r=30),
+                paper_bgcolor="rgba(0,0,0,0)",
+            )
+            st.plotly_chart(fig_ep_si, use_container_width=True)
+
+        with epc2:
+            st.markdown(
+                f"<h4 style='color:{config.COLOR_NO}; text-align:center; margin-bottom:0;'>"
+                f"NO</h4>",
+                unsafe_allow_html=True,
+            )
+            fig_ep_no = go.Figure(go.Indicator(
+                mode="gauge+number+delta" if ep_active and exit_polls else "gauge+number",
+                value=no_val,
+                number={"suffix": "%", "font": {"size": 48, "color": config.COLOR_NO}},
+                delta={"reference": 50, "increasing": {"color": config.COLOR_NO},
+                       "decreasing": {"color": config.COLOR_SI}} if ep_active and exit_polls else None,
+                gauge={
+                    "axis": {"range": [0, 100], "tickwidth": 2, "dtick": 10,
+                             "tickcolor": "#333", "tickfont": {"size": 12}},
+                    "bar": {"color": config.COLOR_NO if ep_active and exit_polls else "#bdc3c7",
+                            "thickness": 0.8},
+                    "bgcolor": "#f0f0f0",
+                    "borderwidth": 2,
+                    "bordercolor": "#ddd",
+                    "steps": [
+                        {"range": [0, 30], "color": "#d5f5e3"},
+                        {"range": [30, 45], "color": "#fdebd0"},
+                        {"range": [45, 55], "color": "#fef9e7"},
+                        {"range": [55, 70], "color": "#fadbd8"},
+                        {"range": [70, 100], "color": "#f5b7b1"},
+                    ],
+                    "threshold": {
+                        "line": {"color": "#2c3e50", "width": 4},
+                        "thickness": 0.9, "value": 50,
+                    },
+                },
+            ))
+            fig_ep_no.update_layout(
+                height=280, margin=dict(t=30, b=10, l=30, r=30),
+                paper_bgcolor="rgba(0,0,0,0)",
+            )
+            st.plotly_chart(fig_ep_no, use_container_width=True)
+
+        if not ep_active:
+            # Show waiting state
+            import math
+            now = datetime.now(timezone.utc)
+            threshold = config.EXIT_POLL_AVAILABLE_AFTER.replace(tzinfo=timezone.utc)
+            remaining = threshold - now
+            hours_left = remaining.total_seconds() / 3600
+
+            st.markdown(
+                "<div style='text-align:center; padding:1.5rem; background:linear-gradient(135deg,#f8f9fa,#e9ecef); "
+                "border-radius:12px; margin:1rem 0;'>"
+                "<h3 style='color:#6c757d; margin:0;'>In attesa degli exit poll...</h3>"
+                f"<p style='color:#adb5bd; margin:0.5rem 0 0 0;'>Disponibili dopo le 15:00 del 23 marzo 2026"
+                f" ({hours_left:.0f} ore rimanenti)</p>"
+                "<p style='color:#ced4da; font-size:0.85rem; margin-top:0.5rem;'>"
+                "Le lancette si attiveranno automaticamente quando i primi exit poll saranno pubblicati."
+                "</p></div>",
+                unsafe_allow_html=True,
+            )
+
+            st.markdown("#### Fonti exit poll monitorate")
+            for source_name in config.EXIT_POLL_SOURCES:
+                st.markdown(f"- {source_name}")
+
+        elif exit_polls:
+            # Show exit poll details
+            st.markdown("#### Dettaglio Exit Poll Rilevati")
+            for ep in exit_polls:
+                icon = "📊" if ep.is_projection else "🗳️"
+                st.markdown(
+                    f"{icon} **{ep.source}** | "
+                    f"SI {ep.si_pct}% - NO {ep.no_pct}% | "
+                    f"Affidabilita: {ep.reliability:.0%} | "
+                    f"{ep.note}"
+                )
+
+            st.markdown(
+                f"<div style='text-align:center; padding:0.8rem; background:#d4edda; "
+                f"border-radius:8px; margin-top:1rem;'>"
+                f"<strong>Media ponderata:</strong> SI {si_val:.1f}% - NO {no_val:.1f}% "
+                f"| Confidenza: {ep_confidence:.0%}</div>",
+                unsafe_allow_html=True,
+            )
+        else:
+            st.info(
+                "Votazione conclusa ma nessun exit poll ancora rilevato nei feed RSS. "
+                "Gli agenti continuano a cercare - i dati appariranno automaticamente."
+            )
+
+    # --- Tab 4: Partiti ---
     with tab_party:
         pc1, pc2 = st.columns(2)
         si_parties = {k: v for k, v in config.PARTY_POSITIONS.items() if v["position"] == "SI"}

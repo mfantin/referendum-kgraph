@@ -111,6 +111,20 @@ _AGENT_INSTITUTIONAL = [
     {"name": "Questione Giustizia", "url": "https://www.questionegiustizia.it/rss.xml", "lang": "it", "reliability": 0.75},
 ]
 
+# Agent 6: Exit Poll & Results (active after voting ends)
+_AGENT_EXIT_POLL = [
+    {"name": "GNews: exit poll referendum", "url": "https://news.google.com/rss/search?q=exit+poll+referendum+2026&hl=it&gl=IT&ceid=IT:it", "lang": "it", "reliability": 0.8},
+    {"name": "GNews: prime proiezioni referendum", "url": "https://news.google.com/rss/search?q=proiezioni+referendum+risultati+2026&hl=it&gl=IT&ceid=IT:it", "lang": "it", "reliability": 0.8},
+    {"name": "GNews: risultati referendum giustizia", "url": "https://news.google.com/rss/search?q=risultati+referendum+giustizia+nordio&hl=it&gl=IT&ceid=IT:it", "lang": "it", "reliability": 0.8},
+    {"name": "GNews: spoglio referendum 2026", "url": "https://news.google.com/rss/search?q=spoglio+scrutinio+referendum+2026&hl=it&gl=IT&ceid=IT:it", "lang": "it", "reliability": 0.8},
+    {"name": "GNews: affluenza referendum 23 marzo", "url": "https://news.google.com/rss/search?q=affluenza+referendum+23+marzo+2026&hl=it&gl=IT&ceid=IT:it", "lang": "it", "reliability": 0.75},
+    {"name": "GNews: consorzio opinio exit poll", "url": "https://news.google.com/rss/search?q=consorzio+opinio+exit+poll+referendum&hl=it&gl=IT&ceid=IT:it", "lang": "it", "reliability": 0.85},
+    {"name": "GNews: youtrend proiezioni referendum", "url": "https://news.google.com/rss/search?q=youtrend+quorum+proiezioni+referendum&hl=it&gl=IT&ceid=IT:it", "lang": "it", "reliability": 0.85},
+    {"name": "GNews: tecnè swg exit poll", "url": "https://news.google.com/rss/search?q=tecn%C3%A8+OR+swg+OR+piepoli+exit+poll+referendum&hl=it&gl=IT&ceid=IT:it", "lang": "it", "reliability": 0.8},
+    {"name": "GNews EN: italy referendum exit poll", "url": "https://news.google.com/rss/search?q=italy+referendum+exit+poll+results+2026&hl=en&gl=US&ceid=US:en", "lang": "en", "reliability": 0.75},
+    {"name": "GNews EN: italy referendum results", "url": "https://news.google.com/rss/search?q=italy+constitutional+referendum+results&hl=en&gl=US&ceid=US:en", "lang": "en", "reliability": 0.75},
+]
+
 # All agents combined
 CANDIDATE_FEEDS = (
     _AGENT_ITALIAN_MEDIA
@@ -118,6 +132,7 @@ CANDIDATE_FEEDS = (
     + _AGENT_GOOGLE_NEWS
     + _AGENT_SOCIAL
     + _AGENT_INSTITUTIONAL
+    + _AGENT_EXIT_POLL
 )
 
 # Agent names for dashboard display
@@ -127,6 +142,7 @@ DISCOVERY_AGENTS = {
     "Google News (multi-query)": len(_AGENT_GOOGLE_NEWS),
     "Social & Community": len(_AGENT_SOCIAL),
     "Fonti Istituzionali": len(_AGENT_INSTITUTIONAL),
+    "Exit Poll & Risultati": len(_AGENT_EXIT_POLL),
 }
 
 

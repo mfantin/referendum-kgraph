@@ -7,6 +7,7 @@ from datetime import datetime, timezone
 
 import config
 from data_fetcher import Article
+from exit_poll import ExitPollResult
 
 
 @dataclass
@@ -146,22 +147,38 @@ def _sentiment_signal(articles: list[Article]) -> Signal:
 
 
 def _momentum_signal(articles: list[Article]) -> Signal:
-    """Detect trend/momentum in recent vs older articles."""
+    """Detect trend/momentum using time-weighted sentiment decay."""
     if len(articles) < 4:
         return Signal("Momentum", 0.5, 0.5, 0.05, config.SIGNAL_WEIGHTS["momentum"],
                       "Dati insufficienti per analisi trend")
 
-    # Split into recent half and older half
-    mid = len(articles) // 2
-    recent = articles[:mid]
-    older = articles[mid:]
+    import math
 
-    def avg_sentiment(arts):
-        scores = [a.sentiment_score for a in arts if a.sentiment_direction != "NEUTRAL"]
-        return sum(scores) / len(scores) if scores else 0.0
+    now = datetime.now(timezone.utc)
+    HALF_LIFE_HOURS = 24  # sentiment halves in relevance every 24h
+    decay_lambda = math.log(2) / (HALF_LIFE_HOURS * 3600)
 
-    recent_avg = avg_sentiment(recent)
-    older_avg = avg_sentiment(older)
+    recent_weighted = 0.0
+    recent_total_w = 0.0
+    older_weighted = 0.0
+    older_total_w = 0.0
+
+    for a in articles:
+        if a.sentiment_direction == "NEUTRAL":
+            continue
+        age_seconds = max(0, (now - a.published).total_seconds())
+        time_weight = math.exp(-decay_lambda * age_seconds)
+        relevance_weight = time_weight * a.relevance
+
+        if age_seconds < 48 * 3600:  # last 48h = "recent"
+            recent_weighted += a.sentiment_score * relevance_weight
+            recent_total_w += relevance_weight
+        else:
+            older_weighted += a.sentiment_score * relevance_weight
+            older_total_w += relevance_weight
+
+    recent_avg = recent_weighted / recent_total_w if recent_total_w > 0 else 0.0
+    older_avg = older_weighted / older_total_w if older_total_w > 0 else 0.0
     shift = recent_avg - older_avg
 
     # Positive shift = moving toward SI, negative = toward NO
@@ -169,28 +186,83 @@ def _momentum_signal(articles: list[Article]) -> Signal:
     si_prob = max(0.2, min(0.8, si_prob))
     no_prob = 1.0 - si_prob
 
-    direction = "SI" if shift > 0 else "NO" if shift < 0 else "stabile"
+    # Confidence scales with amount of data
+    n_directional = sum(1 for a in articles if a.sentiment_direction != "NEUTRAL")
+    confidence = min(0.4, 0.05 + n_directional * 0.02)
+
+    direction = "SI" if shift > 0.01 else "NO" if shift < -0.01 else "stabile"
 
     return Signal(
         "Momentum",
         round(si_prob, 4),
         round(no_prob, 4),
-        0.25,
+        confidence,
         config.SIGNAL_WEIGHTS["momentum"],
-        f"Trend: verso {direction} (shift: {shift:+.3f})",
+        f"Trend: verso {direction} (shift: {shift:+.3f}, {n_directional} articoli direzionali)",
     )
 
 
-def predict(articles: list[Article], polls: list[dict]) -> Prediction:
+def _exit_poll_signal(exit_polls: list[ExitPollResult]) -> Signal | None:
+    """Aggregate exit poll data into a signal. Returns None if no exit polls available."""
+    if not exit_polls:
+        return None
+
+    from exit_poll import aggregate_exit_polls
+    agg = aggregate_exit_polls(exit_polls)
+
+    if agg["count"] == 0:
+        return None
+
+    si_prob = agg["si_pct"] / 100.0
+    no_prob = agg["no_pct"] / 100.0
+    confidence = agg["confidence"]
+
+    # Projections get even higher confidence
+    has_projections = any(ep.is_projection for ep in exit_polls)
+    label = "Exit Poll + Proiezioni" if has_projections else "Exit Poll"
+
+    return Signal(
+        label,
+        round(si_prob, 4),
+        round(no_prob, 4),
+        confidence,
+        config.SIGNAL_WEIGHTS_WITH_EXIT_POLL["exit_poll"],
+        f"{agg['count']} fonti | SI {agg['si_pct']:.1f}% - NO {agg['no_pct']:.1f}%",
+    )
+
+
+def predict(articles: list[Article], polls: list[dict],
+            exit_polls: list[ExitPollResult] | None = None) -> Prediction:
     """
     Generate a prediction by combining all signals.
+    When exit polls are available, weights shift to prioritize them.
     """
-    signals = [
-        _poll_signal(polls),
-        _party_strength_signal(),
-        _sentiment_signal(articles),
-        _momentum_signal(articles),
-    ]
+    ep_signal = _exit_poll_signal(exit_polls or [])
+    use_exit_poll_weights = ep_signal is not None
+
+    # Choose weight set
+    weights = config.SIGNAL_WEIGHTS_WITH_EXIT_POLL if use_exit_poll_weights else config.SIGNAL_WEIGHTS
+
+    signals = []
+    if ep_signal:
+        signals.append(ep_signal)
+
+    # Override weights on existing signals when exit polls are active
+    poll_sig = _poll_signal(polls)
+    poll_sig.weight = weights["polls"]
+    signals.append(poll_sig)
+
+    party_sig = _party_strength_signal()
+    party_sig.weight = weights["party_strength"]
+    signals.append(party_sig)
+
+    sent_sig = _sentiment_signal(articles)
+    sent_sig.weight = weights["media_sentiment"]
+    signals.append(sent_sig)
+
+    mom_sig = _momentum_signal(articles)
+    mom_sig.weight = weights["momentum"]
+    signals.append(mom_sig)
 
     # Weighted combination
     total_weight = 0.0
@@ -211,14 +283,15 @@ def predict(articles: list[Article], polls: list[dict]) -> Prediction:
         confidence = weighted_confidence / sum(s.weight for s in signals)
 
     no_prob = 1.0 - si_prob
-    confidence = min(0.85, confidence)
+    confidence = min(0.95 if use_exit_poll_weights else 0.85, confidence)
 
-    # Confidence interval based on historical error
-    error_margin = config.HISTORICAL_POLL_ERROR * (1.0 - confidence * 0.5)
+    # Confidence interval: narrower when exit polls are available
+    base_error = config.HISTORICAL_POLL_ERROR * (0.3 if use_exit_poll_weights else 1.0)
+    error_margin = base_error * (1.0 - confidence * 0.5)
     ci_low = max(0.0, si_prob - error_margin)
     ci_high = min(1.0, si_prob + error_margin)
 
-    data_points = len(articles) + len(polls)
+    data_points = len(articles) + len(polls) + (len(exit_polls) if exit_polls else 0)
 
     return Prediction(
         si_probability=round(si_prob, 4),

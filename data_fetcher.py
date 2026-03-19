@@ -91,15 +91,50 @@ def compute_relevance(title: str, summary: str, language: str = "it") -> float:
     return round(score, 3)
 
 
+def _detect_negation(text_lower: str, keyword: str, window: int = 4) -> bool:
+    """
+    Check if a keyword is preceded by a negation within a word window.
+    E.g. "non è una buona riforma" -> negates "buona riforma".
+    """
+    NEGATIONS = [
+        "non", "no", "nessun", "nessuna", "nessuno", "mai", "né", "ne ",
+        "senza", "mica", "neppure", "nemmeno", "neanche",
+        "not", "no", "never", "neither", "nor", "without",
+    ]
+    pos = text_lower.find(keyword)
+    if pos < 0:
+        return False
+    # Look at the text before the keyword (up to `window` words back)
+    prefix = text_lower[max(0, pos - 60):pos].strip()
+    prefix_words = prefix.split()[-window:]
+    return any(neg in prefix_words for neg in NEGATIONS)
+
+
 def analyze_sentiment(text: str) -> tuple[float, str]:
     """
-    Analyze sentiment direction (SI vs NO) using keyword matching.
-    Returns (score, direction) where score is -1.0 to +1.0.
+    Analyze sentiment direction (SI vs NO) using keyword matching
+    with negation detection. Returns (score, direction) where score is -1.0 to +1.0.
     """
     text_lower = text.lower()
 
-    si_hits = sum(1 for kw in config.SENTIMENT_SI if kw in text_lower)
-    no_hits = sum(1 for kw in config.SENTIMENT_NO if kw in text_lower)
+    si_hits = 0
+    no_hits = 0
+
+    for kw in config.SENTIMENT_SI:
+        if kw in text_lower:
+            if _detect_negation(text_lower, kw):
+                # Negated SI keyword -> counts as NO signal
+                no_hits += 1
+            else:
+                si_hits += 1
+
+    for kw in config.SENTIMENT_NO:
+        if kw in text_lower:
+            if _detect_negation(text_lower, kw):
+                # Negated NO keyword -> counts as SI signal
+                si_hits += 1
+            else:
+                no_hits += 1
 
     total = si_hits + no_hits
     if total == 0:
