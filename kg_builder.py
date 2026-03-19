@@ -187,62 +187,54 @@ def get_graph_stats(G: nx.DiGraph) -> dict:
     return stats
 
 
-def graph_to_plotly(G: nx.DiGraph) -> go.Figure:
-    """Convert the knowledge graph to an interactive Plotly figure."""
-    if G.number_of_nodes() == 0:
-        fig = go.Figure()
-        fig.add_annotation(text="Nessun dato disponibile", x=0.5, y=0.5,
-                          showarrow=False, font=dict(size=20))
-        return fig
+def _get_edge_color(G, edge):
+    """Determine edge color based on relationship type."""
+    rel = edge[2].get("relationship", "")
+    if rel in ("SUPPORTS", "FAVORS"):
+        if G.nodes.get(edge[1], {}).get("color") == config.NODE_COLORS["outcome_si"]:
+            return "rgba(46, 204, 113, 0.4)"
+        return "rgba(231, 76, 60, 0.4)"
+    if rel == "INDICATES":
+        return "rgba(243, 156, 18, 0.4)"
+    if rel == "MENTIONS":
+        return "rgba(52, 152, 219, 0.2)"
+    return "rgba(149, 165, 166, 0.3)"
 
-    # Use spring layout with fixed seed for reproducibility
-    pos = nx.spring_layout(G, seed=config.GRAPH_LAYOUT_SEED, k=2.5, iterations=50)
 
-    # --- Edge traces ---
-    edge_traces = []
-    for edge in G.edges(data=True):
-        x0, y0 = pos[edge[0]]
-        x1, y1 = pos[edge[1]]
-        rel = edge[2].get("relationship", "")
-        weight = edge[2].get("weight", 0.3)
+# Order in which node types appear during the wave animation
+_ANIMATION_LAYERS = [
+    "referendum", "outcome", "topic", "sentiment",
+    "party", "politician", "poll", "article",
+]
 
-        # Color edges by type
-        if rel in ("SUPPORTS", "FAVORS"):
-            target_type = G.nodes.get(edge[1], {}).get("type", "")
-            if G.nodes.get(edge[1], {}).get("color") == config.NODE_COLORS["outcome_si"]:
-                edge_color = "rgba(46, 204, 113, 0.4)"
-            else:
-                edge_color = "rgba(231, 76, 60, 0.4)"
-        elif rel == "INDICATES":
-            edge_color = "rgba(243, 156, 18, 0.4)"
-        elif rel == "MENTIONS":
-            edge_color = "rgba(52, 152, 219, 0.2)"
-        else:
-            edge_color = "rgba(149, 165, 166, 0.3)"
+TYPE_LABELS = {
+    "referendum": "Referendum",
+    "outcome": "Esiti",
+    "topic": "Temi",
+    "party": "Partiti",
+    "politician": "Politici",
+    "poll": "Sondaggi",
+    "article": "Articoli",
+    "sentiment": "Sentiment",
+}
 
-        edge_traces.append(go.Scatter(
-            x=[x0, x1, None], y=[y0, y1, None],
-            line=dict(width=max(1, weight * 4), color=edge_color),
-            hoverinfo="none",
-            mode="lines",
-            showlegend=False,
-        ))
 
-    # --- Node traces (grouped by type for legend) ---
+def _build_node_groups(G, pos):
+    """Group nodes by type with positions, labels, hover text and sizes."""
     type_groups = {}
     for node, data in G.nodes(data=True):
         t = data.get("type", "unknown")
         if t not in type_groups:
             type_groups[t] = {"x": [], "y": [], "text": [], "hover": [],
-                              "color": [], "size": []}
+                              "color": [], "size": [], "nodes": []}
         x, y = pos[node]
         type_groups[t]["x"].append(x)
         type_groups[t]["y"].append(y)
         type_groups[t]["text"].append(data.get("label", node)[:30])
         type_groups[t]["color"].append(data.get("color", "#95a5a6"))
         type_groups[t]["size"].append(data.get("size", 15))
+        type_groups[t]["nodes"].append(node)
 
-        # Build hover text
         hover_parts = [f"<b>{data.get('label', node)}</b>", f"Tipo: {t}"]
         if t == "poll":
             hover_parts.append(f"SI: {data.get('si_pct', '?')}% | NO: {data.get('no_pct', '?')}%")
@@ -254,37 +246,151 @@ def graph_to_plotly(G: nx.DiGraph) -> go.Figure:
             hover_parts.append(f"Consenso stimato: {data.get('support_pct', '?')}%")
         type_groups[t]["hover"].append("<br>".join(hover_parts))
 
-    TYPE_LABELS = {
-        "referendum": "Referendum",
-        "outcome": "Esiti",
-        "topic": "Temi",
-        "party": "Partiti",
-        "politician": "Politici",
-        "poll": "Sondaggi",
-        "article": "Articoli",
-        "sentiment": "Sentiment",
-    }
+    return type_groups
 
+
+def _build_edge_traces(G, pos, visible_nodes=None):
+    """Build edge traces, optionally filtering to only edges between visible nodes."""
+    edge_traces = []
+    for edge in G.edges(data=True):
+        if visible_nodes is not None:
+            if edge[0] not in visible_nodes or edge[1] not in visible_nodes:
+                continue
+        x0, y0 = pos[edge[0]]
+        x1, y1 = pos[edge[1]]
+        weight = edge[2].get("weight", 0.3)
+        edge_traces.append(go.Scatter(
+            x=[x0, x1, None], y=[y0, y1, None],
+            line=dict(width=max(1, weight * 4), color=_get_edge_color(G, edge)),
+            hoverinfo="none",
+            mode="lines",
+            showlegend=False,
+        ))
+    return edge_traces
+
+
+def _build_node_traces(type_groups, visible_types=None, pulse_type=None):
+    """Build node traces, optionally showing only certain types."""
     node_traces = []
-    for t, group in type_groups.items():
+    for t in _ANIMATION_LAYERS:
+        if t not in type_groups:
+            continue
+        group = type_groups[t]
+        is_visible = visible_types is None or t in visible_types
+        sizes = list(group["size"])
+
+        # Pulse effect: enlarge the pulsing type slightly
+        if pulse_type and t == pulse_type:
+            sizes = [s * 1.25 for s in sizes]
+
         node_traces.append(go.Scatter(
-            x=group["x"], y=group["y"],
+            x=group["x"] if is_visible else [],
+            y=group["y"] if is_visible else [],
             mode="markers+text",
             name=TYPE_LABELS.get(t, t.capitalize()),
-            text=group["text"],
+            text=group["text"] if is_visible else [],
             textposition="top center",
             textfont=dict(size=9, color="#2c3e50"),
-            hovertext=group["hover"],
+            hovertext=group["hover"] if is_visible else [],
             hoverinfo="text",
             marker=dict(
-                color=group["color"],
-                size=group["size"],
+                color=group["color"] if is_visible else [],
+                size=sizes if is_visible else [],
                 line=dict(width=1.5, color="#2c3e50"),
                 opacity=0.9,
             ),
         ))
 
-    fig = go.Figure(data=edge_traces + node_traces)
+    # Add any types not in _ANIMATION_LAYERS
+    for t, group in type_groups.items():
+        if t in _ANIMATION_LAYERS:
+            continue
+        is_visible = visible_types is None or t in visible_types
+        node_traces.append(go.Scatter(
+            x=group["x"] if is_visible else [],
+            y=group["y"] if is_visible else [],
+            mode="markers+text",
+            name=TYPE_LABELS.get(t, t.capitalize()),
+            text=group["text"] if is_visible else [],
+            textposition="top center",
+            textfont=dict(size=9, color="#2c3e50"),
+            hovertext=group["hover"] if is_visible else [],
+            hoverinfo="text",
+            marker=dict(
+                color=group["color"] if is_visible else [],
+                size=group["size"] if is_visible else [],
+                line=dict(width=1.5, color="#2c3e50"),
+                opacity=0.9,
+            ),
+        ))
+    return node_traces
+
+
+def graph_to_plotly(G: nx.DiGraph) -> go.Figure:
+    """Convert the knowledge graph to an animated Plotly figure with wave entrance."""
+    if G.number_of_nodes() == 0:
+        fig = go.Figure()
+        fig.add_annotation(text="Nessun dato disponibile", x=0.5, y=0.5,
+                          showarrow=False, font=dict(size=20))
+        return fig
+
+    # Use spring layout with fixed seed for reproducibility
+    pos = nx.spring_layout(G, seed=config.GRAPH_LAYOUT_SEED, k=2.5, iterations=50)
+
+    type_groups = _build_node_groups(G, pos)
+
+    # Determine which types are actually present, in animation order
+    present_types = [t for t in _ANIMATION_LAYERS if t in type_groups]
+    extra_types = [t for t in type_groups if t not in _ANIMATION_LAYERS]
+    present_types.extend(extra_types)
+
+    # --- Build animation frames ---
+    # Each frame reveals one more layer of node types + their edges
+    frames = []
+    for step in range(len(present_types)):
+        visible_types = set(present_types[:step + 1])
+        visible_nodes = set()
+        for t in visible_types:
+            visible_nodes.update(type_groups[t]["nodes"])
+
+        frame_edges = _build_edge_traces(G, pos, visible_nodes)
+        # Pulse the newly added type
+        pulse = present_types[step]
+        frame_nodes = _build_node_traces(type_groups, visible_types, pulse_type=pulse)
+
+        frames.append(go.Frame(
+            data=frame_edges + frame_nodes,
+            name=f"step_{step}",
+        ))
+
+    # Final "settled" frame: all nodes, no pulse
+    all_nodes = set()
+    for t in present_types:
+        all_nodes.update(type_groups[t]["nodes"])
+    final_edges = _build_edge_traces(G, pos, all_nodes)
+    final_nodes = _build_node_traces(type_groups)
+    frames.append(go.Frame(
+        data=final_edges + final_nodes,
+        name="final",
+    ))
+
+    # --- Initial state: only first layer ---
+    init_visible = {present_types[0]} if present_types else set()
+    init_nodes_set = set()
+    for t in init_visible:
+        init_nodes_set.update(type_groups[t]["nodes"])
+    init_edges = _build_edge_traces(G, pos, init_nodes_set)
+    init_nodes = _build_node_traces(type_groups, init_visible, pulse_type=present_types[0] if present_types else None)
+
+    fig = go.Figure(
+        data=init_edges + init_nodes,
+        frames=frames,
+    )
+
+    # Calculate frame duration: spread over ~3 seconds total
+    n_frames = len(frames)
+    frame_duration = max(80, 3000 // max(n_frames, 1))
+
     fig.update_layout(
         showlegend=True,
         legend=dict(
@@ -302,6 +408,29 @@ def graph_to_plotly(G: nx.DiGraph) -> go.Figure:
         plot_bgcolor="#fafafa",
         paper_bgcolor="#fafafa",
         height=600,
+        updatemenus=[{
+            "type": "buttons",
+            "showactive": False,
+            "x": 0.0,
+            "y": -0.02,
+            "xanchor": "left",
+            "yanchor": "top",
+            "buttons": [
+                {
+                    "label": "Anima",
+                    "method": "animate",
+                    "args": [
+                        None,
+                        {
+                            "frame": {"duration": frame_duration, "redraw": True},
+                            "fromcurrent": False,
+                            "transition": {"duration": frame_duration * 0.6, "easing": "cubic-in-out"},
+                            "mode": "immediate",
+                        },
+                    ],
+                },
+            ],
+        }],
     )
 
     return fig
