@@ -427,13 +427,14 @@ def live_dashboard():
     )
 
     # --- Tabs ---
-    tab_kg, tab_pred, tab_exitpoll, tab_party, tab_articles, tab_discovery = st.tabs([
+    tab_kg, tab_pred, tab_exitpoll, tab_party, tab_articles, tab_discovery, tab_method = st.tabs([
         "\U0001f578\ufe0f Knowledge Graph",
         "\U0001f4ca Predizione",
         "\U0001f3af Exit Poll",
         "\U0001f3db\ufe0f Partiti",
         "\U0001f4f0 Articoli",
         "\U0001f50d Discovery",
+        "\U0001f4d6 Metodologia",
     ])
 
     # --- Tab 1: Knowledge Graph ---
@@ -791,9 +792,9 @@ def live_dashboard():
     with tab_discovery:
         st.markdown("### \U0001f50d Discovery Multi-Agente")
         st.caption(
-            "5 agenti specializzati scandagliano la rete in parallelo: "
+            "6 agenti specializzati scandagliano la rete in parallelo: "
             "media italiani, stampa internazionale, Google News (multi-query), "
-            "social/community, fonti istituzionali."
+            "social/community, fonti istituzionali, exit poll & risultati."
         )
 
         # Show agent breakdown
@@ -839,6 +840,167 @@ def live_dashboard():
                 st.rerun()
         else:
             st.info("Attiva 'Source Discovery' nella sidebar per scoprire nuove fonti.")
+
+    # --- Tab 7: Metodologia ---
+    with tab_method:
+        st.markdown("### Come funziona questo strumento")
+        st.caption(
+            "Questo strumento non e un sondaggio. E un aggregatore sperimentale che combina "
+            "segnali pubblicamente disponibili per produrre una stima indicativa dell'orientamento elettorale."
+        )
+
+        st.markdown("---")
+
+        st.markdown("#### Modello a 5 segnali (ensemble)")
+        st.markdown(
+            "La predizione nasce dalla combinazione ponderata di segnali indipendenti, "
+            "ispirati ai modelli ensemble e agli aggregatori come FiveThirtyEight."
+        )
+
+        # Signal weights table
+        from source_discovery import DISCOVERY_AGENTS as _DISC_AGENTS
+        ep_active_now = is_exit_poll_time() and len(exit_polls) > 0
+
+        sig_data = {
+            "Segnale": ["Sondaggi", "Forza partitica", "Sentiment media", "Momentum", "Exit Poll"],
+            "Peso normale": ["45%", "25%", "20%", "10%", "-"],
+            "Peso con exit poll": ["15%", "10%", "15%", "10%", "50%"],
+            "Stato attuale": [
+                "Attivo", "Attivo", "Attivo", "Attivo",
+                "ATTIVO" if ep_active_now else "In attesa (dopo le 15:00 del 23/03)"
+            ],
+        }
+        st.dataframe(pd.DataFrame(sig_data), use_container_width=True, hide_index=True)
+
+        with st.expander("Sondaggi (peso 45%)", expanded=False):
+            st.markdown(
+                "Media ponderata dei sondaggi disponibili. Ogni sondaggio e pesato per "
+                "**recenza** (decay esponenziale: 1.0, 0.8, 0.64...) e **dimensione del campione** "
+                "(campioni > 1000 pesano di piu). Confidenza massima: 70%.\n\n"
+                "Fonti: Ipsos, SWG, EMG, Tecne, Euromedia + sondaggi estratti automaticamente "
+                "dal testo degli articoli.\n\n"
+                "**Limite noto:** errore storico dei sondaggi referendari italiani ~13pp (referendum 2016)."
+            )
+
+        with st.expander("Forza partitica (peso 25%)", expanded=False):
+            st.markdown(
+                "Stima il bacino SI/NO sulla base del consenso elettorale dei partiti schierati.\n\n"
+                "- **SI** (centrodestra + centristi): ~52%\n"
+                "- **NO** (opposizione): ~40.5%\n\n"
+                "Confidenza fissata al 40%: il voto partitico non si traduce linearmente "
+                "nel voto referendario. Nel 2016 circa il 20% degli elettori PD voto in dissenso."
+            )
+
+        with st.expander("Sentiment media (peso 20%)", expanded=False):
+            st.markdown(
+                "Analizza il tono degli articoli da 80+ fonti con keyword matching su 200+ termini.\n\n"
+                "**Rilevamento negazioni:** il sistema verifica se nelle 4 parole precedenti a un keyword "
+                "compare una negazione (non, mai, senza, mica...). Esempi:\n"
+                '- "e una buona riforma" -> SI\n'
+                '- "non e una buona riforma" -> NO\n'
+                '- "non e pericolosa" -> SI\n\n'
+                "**Limite noto:** non cattura ironia, sarcasmo o doppie negazioni complesse."
+            )
+
+        with st.expander("Momentum (peso 10%)", expanded=False):
+            st.markdown(
+                "Misura lo spostamento del sentiment nel tempo con **decay esponenziale** "
+                "(emivita 24h). Gli articoli delle ultime 48h vengono confrontati con quelli precedenti.\n\n"
+                "Formula: `SI% = 0.5 + shift * 0.3` (coefficiente di smorzamento).\n\n"
+                "La confidenza scala dinamicamente con il numero di articoli direzionali (max 40%)."
+            )
+
+        with st.expander("Exit Poll (peso 50%, solo post-voto)", expanded=False):
+            st.markdown(
+                "Si attiva automaticamente dopo le 15:00 del 23 marzo. "
+                "Estrae dati dagli articoli con 3 pattern regex:\n\n"
+                '1. Percentuali dirette: "si 47,3%" / "no 52,7%"\n'
+                '2. Percentuali invertite: "47,3% per il si"\n'
+                '3. Range: "si tra 45 e 49" (usa il punto medio)\n\n'
+                "Fonti monitorate: Consorzio Opinio (Rai), Quorum/YouTrend (Sky TG24), "
+                "Tecne (Mediaset), SWG (La7), Piepoli, EMG Different.\n\n"
+                "Quando attivo, ridistribuisce i pesi e restringe l'intervallo di confidenza."
+            )
+
+        st.markdown("---")
+        st.markdown("#### Discovery Multi-Agente")
+        st.markdown("6 agenti specializzati scandagliano la rete in parallelo:")
+
+        agent_info = {
+            "Agente": list(_DISC_AGENTS.keys()),
+            "Fonti": list(_DISC_AGENTS.values()),
+        }
+        st.dataframe(pd.DataFrame(agent_info), use_container_width=True, hide_index=True)
+
+        st.markdown(
+            f"**Totale fonti candidate:** {sum(_DISC_AGENTS.values())} (discovery) + "
+            f"{len(config.RSS_FEEDS)} (configurate) = {sum(_DISC_AGENTS.values()) + len(config.RSS_FEEDS)}"
+        )
+
+        st.markdown("---")
+        st.markdown("#### Auto-calibrazione")
+        st.markdown(
+            "Ogni segnale ha un livello di **confidenza** che moltiplica il suo peso base. "
+            "Se un segnale ha pochi dati, la sua confidenza scende e pesa meno nella predizione finale. "
+            "Questo rende il modello robusto anche con dati incompleti."
+        )
+
+        st.markdown("---")
+        st.markdown("#### Intervallo di confidenza")
+        st.markdown(
+            "Calibrato sull'errore storico del referendum 2016 (~13pp).\n\n"
+            "- **Pre-voto:** margine ~9.5pp con confidenza al 53%\n"
+            "- **Con exit poll:** margine ridotto a 2-3pp\n\n"
+            "Formula: `margine = errore_base * (1 - confidenza * 0.5)`"
+        )
+
+        st.markdown("---")
+        st.markdown("#### Changelog versioni")
+
+        versions = [
+            {
+                "Versione": "3.0",
+                "Data": "19 marzo 2026",
+                "Novita": (
+                    "Tab Exit Poll con gauge a lancetta (attivo post-voto). "
+                    "Agente 6 (Exit Poll & Risultati, 10 fonti). "
+                    "Rilevamento negazioni nel sentiment. "
+                    "Momentum con decay esponenziale (emivita 24h). "
+                    "Keyword affluenza/partecipazione (200+ termini). "
+                    "Tab Metodologia integrato nell'app."
+                ),
+            },
+            {
+                "Versione": "2.0",
+                "Data": "15 marzo 2026",
+                "Novita": (
+                    "Discovery multi-agente (5 agenti, 54 fonti). "
+                    "Lessico sentiment espanso a 187 termini. "
+                    "Redesign mobile-responsive completo. "
+                    "Countdown JS indipendente dal refresh dati."
+                ),
+            },
+            {
+                "Versione": "1.0",
+                "Data": "10 marzo 2026",
+                "Novita": (
+                    "Rilascio iniziale. Knowledge Graph con NetworkX. "
+                    "4 segnali di predizione (sondaggi, partiti, sentiment, momentum). "
+                    "8 feed RSS configurati. Dashboard Streamlit."
+                ),
+            },
+        ]
+        st.dataframe(pd.DataFrame(versions), use_container_width=True, hide_index=True)
+
+        st.markdown("---")
+        st.markdown(
+            "**Metodologia completa:** "
+            "[METODOLOGIA.md su GitHub](https://github.com/mfantin/referendum-kgraph/blob/main/METODOLOGIA.md)"
+        )
+        st.markdown(
+            "**Riferimenti:** Dietterich (2000), Liu (2012), Silver (2012), "
+            "McCombs & Shaw (1972), Mitofsky (1991), CISE/LUISS (2026)."
+        )
 
     # --- Feed Status ---
     if show_feed_status:
