@@ -11,12 +11,53 @@ import pandas as pd
 from datetime import datetime, timedelta, timezone
 import streamlit.components.v1 as components
 
+import json
+import os
+import hashlib
+
 import config
 from data_fetcher import fetch_all_feeds, get_all_polls
 from kg_builder import build_graph, graph_to_plotly, get_graph_stats
 from predictor import predict
 from source_discovery import discover_sources, get_discovery_stats
 from exit_poll import collect_exit_polls, is_exit_poll_time, aggregate_exit_polls
+
+# --- Visit Counter (persists via JSON file) ---
+_VISITS_FILE = os.path.join(os.path.dirname(os.path.abspath(__file__)), ".visits.json")
+
+
+def _load_visits() -> dict:
+    try:
+        with open(_VISITS_FILE, "r") as f:
+            return json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError):
+        return {"total_views": 0, "unique_sessions": []}
+
+
+def _save_visits(data: dict):
+    try:
+        with open(_VISITS_FILE, "w") as f:
+            json.dump(data, f)
+    except OSError:
+        pass
+
+
+def _record_visit() -> tuple[int, int]:
+    """Record a visit and return (total_views, unique_visitors)."""
+    data = _load_visits()
+    data["total_views"] = data.get("total_views", 0) + 1
+
+    # Generate a session fingerprint from Streamlit's session ID
+    session_id = str(id(st.session_state))
+    session_hash = hashlib.md5(session_id.encode()).hexdigest()[:12]
+
+    unique = set(data.get("unique_sessions", []))
+    unique.add(session_hash)
+    # Keep only last 10000 to avoid file bloat
+    data["unique_sessions"] = list(unique)[-10000:]
+
+    _save_visits(data)
+    return data["total_views"], len(unique)
 
 # --- Page Config ---
 st.set_page_config(
@@ -236,6 +277,15 @@ if "discovered_feeds" not in st.session_state:
     st.session_state.discovered_feeds = {}
 if "fetch_count" not in st.session_state:
     st.session_state.fetch_count = 0
+if "visit_recorded" not in st.session_state:
+    st.session_state.visit_recorded = False
+    st.session_state.total_views = 0
+    st.session_state.unique_visitors = 0
+
+# Record visit once per session
+if not st.session_state.visit_recorded:
+    st.session_state.total_views, st.session_state.unique_visitors = _record_visit()
+    st.session_state.visit_recorded = True
 
 # --- Sidebar (static, outside fragment) ---
 with st.sidebar:
@@ -1038,10 +1088,11 @@ def live_dashboard():
 
     # --- Footer ---
     st.markdown("---")
-    fc1, fc2, fc3 = st.columns(3)
+    fc1, fc2, fc3, fc4 = st.columns(4)
     fc1.caption(f"\U0001f4e1 {sum(1 for s in feed_statuses if s.success)}/{len(feed_statuses)} feed attivi")
     fc2.caption(f"\U0001f4f0 {len(articles)} articoli analizzati")
     fc3.caption(f"\U0001f504 Aggiornamento #{st.session_state.fetch_count}")
+    fc4.caption(f"\U0001f465 {st.session_state.unique_visitors} visitatori | {st.session_state.total_views} visite")
 
 
 # --- Run the fragment ---
