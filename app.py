@@ -851,10 +851,11 @@ def live_dashboard():
 
         st.markdown("---")
 
-        st.markdown("#### Modello a 5 segnali (ensemble)")
+        st.markdown("#### Modello a 5 segnali ([ensemble](https://it.wikipedia.org/wiki/Ensemble_learning))")
         st.markdown(
             "La predizione nasce dalla combinazione ponderata di segnali indipendenti, "
-            "ispirati ai modelli ensemble e agli aggregatori come FiveThirtyEight."
+            "ispirati ai [modelli ensemble](https://en.wikipedia.org/wiki/Ensemble_learning) "
+            "e agli aggregatori come [FiveThirtyEight](https://it.wikipedia.org/wiki/FiveThirtyEight)."
         )
 
         # Signal weights table
@@ -874,12 +875,16 @@ def live_dashboard():
 
         with st.expander("Sondaggi (peso 45%)", expanded=False):
             st.markdown(
-                "Media ponderata dei sondaggi disponibili. Ogni sondaggio e pesato per "
-                "**recenza** (decay esponenziale: 1.0, 0.8, 0.64...) e **dimensione del campione** "
+                "[Media ponderata](https://it.wikipedia.org/wiki/Media_ponderata) dei sondaggi disponibili. "
+                "Ogni sondaggio e pesato per "
+                "**recenza** ([decay esponenziale](https://it.wikipedia.org/wiki/Decadimento_esponenziale): "
+                "1.0, 0.8, 0.64...) e **dimensione del campione** "
                 "(campioni > 1000 pesano di piu). Confidenza massima: 70%.\n\n"
                 "Fonti: Ipsos, SWG, EMG, Tecne, Euromedia + sondaggi estratti automaticamente "
-                "dal testo degli articoli.\n\n"
-                "**Limite noto:** errore storico dei sondaggi referendari italiani ~13pp (referendum 2016)."
+                "dal testo degli articoli tramite "
+                "[espressioni regolari](https://it.wikipedia.org/wiki/Espressione_regolare).\n\n"
+                "**Limite noto:** errore storico dei sondaggi referendari italiani ~13pp "
+                "([referendum 2016](https://it.wikipedia.org/wiki/Referendum_costituzionale_in_Italia_del_2016))."
             )
 
         with st.expander("Forza partitica (peso 25%)", expanded=False):
@@ -893,19 +898,24 @@ def live_dashboard():
 
         with st.expander("Sentiment media (peso 20%)", expanded=False):
             st.markdown(
-                "Analizza il tono degli articoli da 80+ fonti con keyword matching su 200+ termini.\n\n"
+                "Analizza il tono degli articoli da 80+ fonti con "
+                "[keyword matching](https://en.wikipedia.org/wiki/Keyword_spotting) su 200+ termini "
+                "([analisi del sentiment](https://it.wikipedia.org/wiki/Analisi_del_sentimento)).\n\n"
                 "**Rilevamento negazioni:** il sistema verifica se nelle 4 parole precedenti a un keyword "
                 "compare una negazione (non, mai, senza, mica...). Esempi:\n"
                 '- "e una buona riforma" -> SI\n'
                 '- "non e una buona riforma" -> NO\n'
                 '- "non e pericolosa" -> SI\n\n'
-                "**Limite noto:** non cattura ironia, sarcasmo o doppie negazioni complesse."
+                "**Limite noto:** non cattura [ironia](https://it.wikipedia.org/wiki/Ironia), "
+                "sarcasmo o doppie negazioni complesse."
             )
 
         with st.expander("Momentum (peso 10%)", expanded=False):
             st.markdown(
-                "Misura lo spostamento del sentiment nel tempo con **decay esponenziale** "
-                "(emivita 24h). Gli articoli delle ultime 48h vengono confrontati con quelli precedenti.\n\n"
+                "Misura lo spostamento del sentiment nel tempo con "
+                "[**decay esponenziale**](https://it.wikipedia.org/wiki/Decadimento_esponenziale) "
+                "([emivita](https://it.wikipedia.org/wiki/Emivita_(fisica)) 24h). "
+                "Gli articoli delle ultime 48h vengono confrontati con quelli precedenti.\n\n"
                 "Formula: `SI% = 0.5 + shift * 0.3` (coefficiente di smorzamento).\n\n"
                 "La confidenza scala dinamicamente con il numero di articoli direzionali (max 40%)."
             )
@@ -913,13 +923,16 @@ def live_dashboard():
         with st.expander("Exit Poll (peso 50%, solo post-voto)", expanded=False):
             st.markdown(
                 "Si attiva automaticamente dopo le 15:00 del 23 marzo. "
-                "Estrae dati dagli articoli con 3 pattern regex:\n\n"
+                "Estrae dati dagli articoli con 3 pattern "
+                "[regex](https://it.wikipedia.org/wiki/Espressione_regolare):\n\n"
                 '1. Percentuali dirette: "si 47,3%" / "no 52,7%"\n'
                 '2. Percentuali invertite: "47,3% per il si"\n'
                 '3. Range: "si tra 45 e 49" (usa il punto medio)\n\n'
-                "Fonti monitorate: Consorzio Opinio (Rai), Quorum/YouTrend (Sky TG24), "
+                "Fonti monitorate: Consorzio Opinio (Rai), "
+                "[Quorum/YouTrend](https://it.wikipedia.org/wiki/YouTrend) (Sky TG24), "
                 "Tecne (Mediaset), SWG (La7), Piepoli, EMG Different.\n\n"
-                "Quando attivo, ridistribuisce i pesi e restringe l'intervallo di confidenza."
+                "Quando attivo, ridistribuisce i pesi e restringe "
+                "l'[intervallo di confidenza](https://it.wikipedia.org/wiki/Intervallo_di_confidenza)."
             )
 
         st.markdown("---")
@@ -940,17 +953,24 @@ def live_dashboard():
         st.markdown("---")
         st.markdown("#### Auto-calibrazione")
         st.markdown(
-            "Ogni segnale ha un livello di **confidenza** che moltiplica il suo peso base. "
+            "Ogni segnale ha un livello di "
+            "[**confidenza**](https://it.wikipedia.org/wiki/Intervallo_di_confidenza) "
+            "che moltiplica il suo peso base. "
             "Se un segnale ha pochi dati, la sua confidenza scende e pesa meno nella predizione finale. "
-            "Questo rende il modello robusto anche con dati incompleti."
+            "Questo rende il modello robusto anche con dati incompleti "
+            "([calibrazione](https://en.wikipedia.org/wiki/Calibration_(statistics)))."
         )
 
         st.markdown("---")
-        st.markdown("#### Intervallo di confidenza")
         st.markdown(
-            "Calibrato sull'errore storico del referendum 2016 (~13pp).\n\n"
+            "#### [Intervallo di confidenza](https://it.wikipedia.org/wiki/Intervallo_di_confidenza)"
+        )
+        st.markdown(
+            "Calibrato sull'errore storico del "
+            "[referendum 2016](https://it.wikipedia.org/wiki/Referendum_costituzionale_in_Italia_del_2016) "
+            "(~13pp).\n\n"
             "- **Pre-voto:** margine ~9.5pp con confidenza al 53%\n"
-            "- **Con exit poll:** margine ridotto a 2-3pp\n\n"
+            "- **Con [exit poll](https://it.wikipedia.org/wiki/Exit_poll):** margine ridotto a 2-3pp\n\n"
             "Formula: `margine = errore_base * (1 - confidenza * 0.5)`"
         )
 
@@ -998,8 +1018,12 @@ def live_dashboard():
             "[METODOLOGIA.md su GitHub](https://github.com/mfantin/referendum-kgraph/blob/main/METODOLOGIA.md)"
         )
         st.markdown(
-            "**Riferimenti:** Dietterich (2000), Liu (2012), Silver (2012), "
-            "McCombs & Shaw (1972), Mitofsky (1991), CISE/LUISS (2026)."
+            "**Riferimenti:** "
+            "[Dietterich (2000)](https://en.wikipedia.org/wiki/Ensemble_learning) - Ensemble Methods | "
+            "[Liu (2012)](https://en.wikipedia.org/wiki/Sentiment_analysis) - Sentiment Analysis | "
+            "[Silver (2012)](https://it.wikipedia.org/wiki/Nate_Silver) - The Signal and the Noise | "
+            "[McCombs & Shaw (1972)](https://it.wikipedia.org/wiki/Agenda_setting) - Agenda Setting | "
+            "[Mitofsky (1991)](https://en.wikipedia.org/wiki/Warren_Mitofsky) - Exit Polls"
         )
 
     # --- Feed Status ---
