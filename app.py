@@ -439,36 +439,11 @@ def live_dashboard():
 
     # --- Tab 1: Knowledge Graph ---
     with tab_kg:
-        st.caption("Tocca *Anima* per vedere il grafo prendere forma. Trascina per esplorare, pizzica per zoom.")
+        st.caption("Tocca e trascina per esplorare il grafo. Pizzica per zoom.")
         fig_kg = graph_to_plotly(graph)
         fig_kg.update_layout(height=500)
         st.plotly_chart(fig_kg, use_container_width=True,
                         config={"scrollZoom": True, "displayModeBar": False})
-
-        # Auto-play animation on first load
-        components.html("""
-        <script>
-        (function() {
-            function tryAutoPlay() {
-                var buttons = window.parent.document.querySelectorAll('.modebar-btn, .updatemenu-button');
-                for (var i = 0; i < buttons.length; i++) {
-                    var text = buttons[i].textContent || buttons[i].innerText || '';
-                    if (text.trim() === 'Anima') {
-                        buttons[i].click();
-                        return true;
-                    }
-                }
-                return false;
-            }
-            // Try a few times with delay (chart may not be rendered yet)
-            var attempts = 0;
-            var interval = setInterval(function() {
-                attempts++;
-                if (tryAutoPlay() || attempts > 15) clearInterval(interval);
-            }, 500);
-        })();
-        </script>
-        """, height=0)
 
         stats = get_graph_stats(graph)
         scol1, scol2, scol3, scol4 = st.columns(4)
