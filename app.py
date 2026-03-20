@@ -76,11 +76,18 @@ components.html("""
 st.markdown("""
 <style>
     /* Prevent fragment dimming/fading during background re-renders */
-    [data-stale="true"] {
+    [data-stale],
+    [data-stale="true"],
+    [data-stale] > *,
+    .stale-container,
+    .element-container,
+    .stTabs,
+    [data-testid="stVerticalBlock"],
+    [data-testid="stHorizontalBlock"],
+    [data-testid="stTabs"],
+    [data-testid="stMainBlockContainer"] {
         opacity: 1 !important;
-    }
-    .stale-container {
-        opacity: 1 !important;
+        transition: none !important;
     }
 
     /* Hide Streamlit Deploy button */
