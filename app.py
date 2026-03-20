@@ -350,7 +350,7 @@ components.html("""
 
 # --- Cached data loading functions ---
 @st.cache_data(ttl=data_refresh, show_spinner=False)
-def load_data(extra_feeds_keys=None, extra_feeds=None):
+def _load_data_cached(extra_feeds_keys=None, extra_feeds=None):
     articles, statuses = fetch_all_feeds(extra_feeds)
     polls = get_all_polls(articles)
     return articles, statuses, polls
@@ -419,7 +419,12 @@ def live_dashboard():
     # --- Load data ---
     try:
         extra_keys = tuple(sorted(extra.keys())) if extra else None
-        articles, feed_statuses, polls = load_data(extra_keys, extra if extra else None)
+        is_first_load = st.session_state.fetch_count == 0
+        if is_first_load:
+            with st.spinner("Caricamento dati in corso... raccolta fonti, social media e sondaggi"):
+                articles, feed_statuses, polls = _load_data_cached(extra_keys, extra if extra else None)
+        else:
+            articles, feed_statuses, polls = _load_data_cached(extra_keys, extra if extra else None)
         st.session_state.fetch_count += 1
     except Exception as e:
         st.error(f"Errore nel caricamento dati: {str(e)}")
