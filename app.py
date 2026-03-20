@@ -811,16 +811,51 @@ def live_dashboard():
     with tab_discovery:
         st.markdown("### \U0001f50d Discovery Multi-Agente")
         st.caption(
-            "6 agenti specializzati scandagliano la rete in parallelo: "
-            "media italiani, stampa internazionale, Google News (multi-query), "
-            "social/community, fonti istituzionali, exit poll & risultati."
+            "17 agenti RSS + 4 fetcher diretti (Reddit JSON, Telegram, Bluesky, Mastodon) "
+            "scandagliano la rete in parallelo senza API key."
         )
 
-        # Show agent breakdown
+        # Show agent breakdown (three rows for readability)
         from source_discovery import DISCOVERY_AGENTS
-        agent_cols = st.columns(len(DISCOVERY_AGENTS))
-        for i, (agent_name, count) in enumerate(DISCOVERY_AGENTS.items()):
-            agent_cols[i].metric(agent_name, f"{count} fonti")
+        agent_items = list(DISCOVERY_AGENTS.items())
+        row1 = agent_items[:6]
+        row2 = agent_items[6:12]
+        row3 = agent_items[12:]
+        cols1 = st.columns(len(row1))
+        for i, (agent_name, count) in enumerate(row1):
+            cols1[i].metric(agent_name, f"{count} fonti")
+        cols2 = st.columns(len(row2))
+        for i, (agent_name, count) in enumerate(row2):
+            cols2[i].metric(agent_name, f"{count} fonti")
+        cols3 = st.columns(len(row3))
+        for i, (agent_name, count) in enumerate(row3):
+            cols3[i].metric(agent_name, f"{count} fonti")
+
+        # Social platform direct fetcher stats
+        st.markdown("#### Fetcher Diretti (accesso senza API key)")
+        try:
+            from social_fetchers import get_social_stats
+            social_stats = get_social_stats(articles)
+            if social_stats:
+                platform_labels = {
+                    "reddit": "Reddit JSON API",
+                    "telegram": "Telegram Scraper",
+                    "bluesky": "Bluesky API",
+                    "mastodon": "Mastodon API",
+                    "youtube": "YouTube RSS",
+                }
+                scols = st.columns(min(len(social_stats), 5))
+                for i, (platform, stats) in enumerate(social_stats.items()):
+                    label = platform_labels.get(platform, platform.title())
+                    with scols[i % len(scols)]:
+                        st.metric(label, f"{stats['count']} post")
+                        si_pct = round(stats['si'] / stats['count'] * 100) if stats['count'] > 0 else 0
+                        no_pct = round(stats['no'] / stats['count'] * 100) if stats['count'] > 0 else 0
+                        st.caption(f"SI {si_pct}% | NO {no_pct}% | Eng: {stats['avg_engagement']:.2f}")
+            else:
+                st.info("Nessun dato dai fetcher social diretti in questo ciclo.")
+        except Exception:
+            st.info("Fetcher social diretti non ancora attivi.")
 
         if discovered:
             disc_stats = get_discovery_stats(discovered)

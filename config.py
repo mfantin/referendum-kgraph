@@ -76,6 +76,16 @@ REFERENDUM_KEYWORDS_EN = [
     "csm reform", "magistrate", "prosecutor judge separation",
 ]
 
+# Social-media-specific keywords (informal/colloquial language on Reddit, blogs, etc.)
+SOCIAL_KEYWORDS_IT = [
+    "referendum", "nordio", "separazione carriere", "riforma giustizia",
+    "voto", "votare", "seggio", "scheda", "quorum", "affluenza",
+    "magistrati", "giudici", "pm", "procuratori",
+    "csm", "alta corte", "sorteggio",
+    "sì", "no", "astengo", "astensione", "non voto",
+    "meloni", "schlein", "conte", "salvini", "tajani", "calenda", "renzi",
+]
+
 # --- Party Positions ---
 PARTY_POSITIONS = {
     "FdI": {
@@ -325,6 +335,86 @@ NODE_COLORS = {
     "topic": COLOR_TOPIC,
     "referendum": "#2c3e50",
 }
+
+# --- Direct Social Platform Configuration ---
+# Reddit: subreddits and search queries (JSON API, no auth needed)
+REDDIT_SEARCHES = {
+    "r/italy": {
+        "queries": [
+            "referendum", "nordio", "separazione carriere",
+            "riforma giustizia", "voto marzo", "magistratura",
+        ],
+        "lang": "it",
+        "reliability": 0.5,
+    },
+    "r/italypolitics": {
+        "queries": ["referendum", "nordio", "giustizia", "voto"],
+        "lang": "it",
+        "reliability": 0.45,
+    },
+    "r/Italia": {
+        "queries": ["referendum", "nordio", "voto"],
+        "lang": "it",
+        "reliability": 0.4,
+    },
+    "r/europe": {
+        "queries": ["italy referendum", "italian justice reform"],
+        "lang": "en",
+        "reliability": 0.45,
+    },
+    "r/worldnews": {
+        "queries": ["italy referendum"],
+        "lang": "en",
+        "reliability": 0.4,
+    },
+}
+
+# Telegram: public channels (scraped from t.me/s/)
+TELEGRAM_CHANNELS = {
+    "GiorgiaMeloni": {"label": "Giorgia Meloni", "lang": "it", "reliability": 0.55},
+    "matteosalviniofficial": {"label": "Matteo Salvini", "lang": "it", "reliability": 0.55},
+    "GiuseppeConte_ufficiale": {"label": "Giuseppe Conte", "lang": "it", "reliability": 0.55},
+    "foraborsa": {"label": "Fora Borsa (economia)", "lang": "it", "reliability": 0.4},
+}
+
+# Bluesky: search queries (public API, no auth)
+BLUESKY_QUERIES = [
+    "referendum nordio",
+    "separazione carriere",
+    "riforma giustizia",
+    "voto referendum italia",
+    "#referendum",
+    "#riformanordio",
+]
+BLUESKY_RELIABILITY = 0.4
+
+# Mastodon: instances and hashtags (public tag timeline API)
+MASTODON_SEARCHES = {
+    "mastodon.uno": {
+        "tags": ["referendum", "riformanordio", "nordio", "separazionecarriere"],
+        "lang": "it",
+        "reliability": 0.35,
+    },
+    "mastodon.social": {
+        "tags": ["referendum", "riformanordio"],
+        "lang": "it",
+        "reliability": 0.3,
+    },
+}
+
+# YouTube: political channels (official RSS, parsed by feedparser)
+YOUTUBE_POLITICAL_CHANNELS = {
+    "La7 Attualità": "UCkTnMJPSjkvPnFJXLMWzMfQ",
+    "Sky TG24": "UC0LlEMGTe2pg1K0gVi2HFKQ",
+    "Rai News": "UCLoNQH9RCndfUGOb2f7E1Ew",
+    "Breaking Italy": "UCRI-Ds5eY70kxWzejMYiMDw",
+    "Fanpage.it": "UCBcfQzk5-Qlvpoql1oCeaJQ",
+    "Open": "UCnsvJeZO4RigQ898WdDNoBw",
+}
+
+# Social fetcher settings
+SOCIAL_FETCH_TIMEOUT = 10
+SOCIAL_RATE_LIMIT_DELAY = 2.0  # seconds between Reddit requests
 
 # --- Refresh & Cache ---
 DEFAULT_REFRESH_SECONDS = 300

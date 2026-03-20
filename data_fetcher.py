@@ -31,6 +31,8 @@ class Article:
     mentioned_parties: list[str] = field(default_factory=list)
     poll_data: Optional[dict] = None
     language: str = "it"
+    platform: str = "rss"  # "rss", "reddit", "telegram", "bluesky", "mastodon", "youtube"
+    engagement_score: Optional[float] = None  # normalized 0-1 (upvotes, views, likes)
 
 
 @dataclass
@@ -267,7 +269,7 @@ def fetch_single_feed(feed_name: str, feed_config: dict) -> tuple[list[Article],
 
 def fetch_all_feeds(extra_feeds: dict | None = None) -> tuple[list[Article], list[FeedStatus]]:
     """
-    Fetch all configured RSS feeds + any discovered extras.
+    Fetch all configured RSS feeds + any discovered extras + direct social platforms.
     """
     all_articles = []
     all_statuses = []
@@ -285,10 +287,23 @@ def fetch_all_feeds(extra_feeds: dict | None = None) -> tuple[list[Article], lis
             all_articles.extend(articles)
             all_statuses.append(status)
 
-    # Sort by relevance * recency
+    # Direct social platform fetchers (Reddit JSON, Telegram, Bluesky, Mastodon)
+    try:
+        from social_fetchers import fetch_all_social
+        social_articles, social_statuses = fetch_all_social()
+        all_articles.extend(social_articles)
+        all_statuses.extend(social_statuses)
+    except Exception as e:
+        logger.error(f"Social fetchers failed: {e}")
+
+    # Sort by relevance * recency (engagement boosts social content)
     now = datetime.now(timezone.utc)
     all_articles.sort(
-        key=lambda a: a.relevance * max(0.1, 1.0 - (now - a.published).total_seconds() / 86400),
+        key=lambda a: (
+            a.relevance
+            * max(0.1, 1.0 - (now - a.published).total_seconds() / 86400)
+            * (1.0 + (a.engagement_score or 0.0) * 0.5)
+        ),
         reverse=True,
     )
 
