@@ -326,14 +326,14 @@ components.html("""
 
 
 # --- Cached data loading functions ---
-@st.cache_data(ttl=config.CACHE_TTL_SECONDS, show_spinner="Recupero dati live...")
+@st.cache_data(ttl=data_refresh, show_spinner="Recupero dati live...")
 def load_data(extra_feeds_keys=None, extra_feeds=None):
     articles, statuses = fetch_all_feeds(extra_feeds)
     polls = get_all_polls(articles)
     return articles, statuses, polls
 
 
-@st.cache_data(ttl=900, show_spinner="Scoperta nuove fonti...")
+@st.cache_data(ttl=max(data_refresh, 120), show_spinner="Scoperta nuove fonti...")
 def run_discovery():
     return discover_sources(max_new=50)
 
