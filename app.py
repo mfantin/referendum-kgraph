@@ -6,6 +6,8 @@ Smooth live updates via st.fragment | JS animated countdown | Mobile-friendly
 """
 
 import os
+import threading
+import time as _time
 
 import streamlit as st
 import plotly.graph_objects as go
@@ -266,6 +268,10 @@ if "discovered_feeds" not in st.session_state:
     st.session_state.discovered_feeds = {}
 if "fetch_count" not in st.session_state:
     st.session_state.fetch_count = 0
+if "discovery_running" not in st.session_state:
+    st.session_state.discovery_running = False
+if "discovery_last_run" not in st.session_state:
+    st.session_state.discovery_last_run = None
 
 # --- Sidebar (static, outside fragment) ---
 with st.sidebar:
@@ -343,16 +349,51 @@ components.html("""
 
 
 # --- Cached data loading functions ---
-@st.cache_data(ttl=data_refresh, show_spinner="Recupero dati live...")
+@st.cache_data(ttl=data_refresh, show_spinner=False)
 def load_data(extra_feeds_keys=None, extra_feeds=None):
     articles, statuses = fetch_all_feeds(extra_feeds)
     polls = get_all_polls(articles)
     return articles, statuses, polls
 
 
-@st.cache_data(ttl=max(data_refresh, 120), show_spinner="Scoperta nuove fonti...")
-def run_discovery():
-    return discover_sources(max_new=50)
+# --- Background discovery (runs in a separate thread, never blocks UI) ---
+_discovery_lock = threading.Lock()
+_discovery_result = {"sources": [], "feeds": {}, "running": False}
+
+
+def _run_discovery_background():
+    """Runs discovery in a background thread. Results stored in module-level dict."""
+    global _discovery_result
+    if _discovery_result["running"]:
+        return  # Already running
+    _discovery_result["running"] = True
+    try:
+        discovered = discover_sources(max_new=50)
+        extra = {}
+        for src in discovered:
+            if src.status == "active" and src.relevant_count > 0:
+                extra[src.name] = {
+                    "url": src.url,
+                    "language": src.language,
+                    "reliability": src.reliability,
+                }
+        with _discovery_lock:
+            _discovery_result["sources"] = discovered
+            _discovery_result["feeds"] = extra
+    except Exception:
+        pass
+    finally:
+        _discovery_result["running"] = False
+
+
+def _maybe_start_discovery(interval: int = 120):
+    """Start background discovery if enough time has passed since last run."""
+    now = _time.time()
+    last = st.session_state.get("discovery_last_run")
+    if last is None or (now - last) >= interval:
+        st.session_state.discovery_last_run = now
+        thread = threading.Thread(target=_run_discovery_background, daemon=True)
+        thread.start()
 
 
 # ============================================================
@@ -361,26 +402,19 @@ def run_discovery():
 # ============================================================
 @st.fragment(run_every=timedelta(seconds=data_refresh))
 def live_dashboard():
-    # --- Source Discovery ---
+    # --- Source Discovery (background, never blocks UI) ---
     if show_discovery:
-        try:
-            discovered = run_discovery()
-            st.session_state.discovered_sources = discovered
-            extra = {}
-            for src in discovered:
-                if src.status == "active" and src.relevant_count > 0:
-                    extra[src.name] = {
-                        "url": src.url,
-                        "language": src.language,
-                        "reliability": src.reliability,
-                    }
-            st.session_state.discovered_feeds = extra
-        except Exception:
-            discovered = []
-            extra = {}
-    else:
-        extra = st.session_state.discovered_feeds
-        discovered = st.session_state.discovered_sources
+        _maybe_start_discovery(interval=max(data_refresh, 120))
+
+    # Pick up latest discovery results (may be from a previous run)
+    with _discovery_lock:
+        discovered = _discovery_result["sources"]
+        extra = _discovery_result["feeds"]
+
+    # Also keep session_state in sync for the discovery tab
+    st.session_state.discovered_sources = discovered
+    st.session_state.discovered_feeds = extra
+    st.session_state.discovery_running = _discovery_result["running"]
 
     # --- Load data ---
     try:
@@ -900,7 +934,10 @@ def live_dashboard():
                         f"{src.relevant_count} rilevanti"
                     )
 
+            if st.session_state.get("discovery_running"):
+                st.info("Discovery in corso in background...")
             if st.button("Riesegui Discovery"):
+                st.session_state.discovery_last_run = None  # Force re-run
                 st.cache_data.clear()
                 st.rerun()
         else:
