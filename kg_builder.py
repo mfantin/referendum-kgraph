@@ -21,6 +21,7 @@ def build_graph(articles: list[Article], polls: list[dict]) -> nx.DiGraph:
     _add_politician_nodes(G)
     _add_poll_nodes(G, polls)
     _add_article_nodes(G, articles)
+    _add_social_platform_nodes(G, articles)
     _add_sentiment_aggregate(G, articles)
 
     return G
@@ -111,23 +112,45 @@ def _add_poll_nodes(G: nx.DiGraph, polls: list[dict]):
 
 
 def _add_article_nodes(G: nx.DiGraph, articles: list[Article]):
-    # Add only top articles to keep graph readable
-    top_articles = sorted(articles, key=lambda a: a.relevance, reverse=True)[:15]
+    # Split: RSS/news articles vs social posts
+    news_articles = [a for a in articles if a.platform == "rss"]
+    social_articles = [a for a in articles if a.platform != "rss"]
 
-    for i, article in enumerate(top_articles):
-        node_id = f"Art_{i}_{article.source[:10]}"
+    # Top 15 news articles + top 15 social posts (more content in graph)
+    top_news = sorted(news_articles, key=lambda a: a.relevance, reverse=True)[:15]
+    top_social = sorted(
+        social_articles,
+        key=lambda a: a.relevance * (1.0 + (a.engagement_score or 0.0)),
+        reverse=True,
+    )[:15]
+
+    for i, article in enumerate(top_news + top_social):
+        is_social = article.platform != "rss"
+        prefix = "Social" if is_social else "Art"
+        node_id = f"{prefix}_{i}_{article.source[:10]}"
+
+        node_type = "social" if is_social else "article"
+        color = config.NODE_COLORS.get(node_type, config.NODE_COLORS["article"])
+
+        # Social posts with high engagement get bigger nodes
+        base_size = 12
+        if is_social and article.engagement_score:
+            base_size = max(12, min(22, 12 + article.engagement_score * 10))
+
         G.add_node(
             node_id,
-            type="article",
-            color=config.NODE_COLORS["article"],
-            label=article.title[:40] + "...",
+            type=node_type,
+            color=color,
+            label=article.title[:40] + "..." if len(article.title) > 40 else article.title,
             full_title=article.title,
             source=article.source,
             url=article.url,
             sentiment=article.sentiment_direction,
             sentiment_score=article.sentiment_score,
             relevance=article.relevance,
-            size=12,
+            platform=article.platform,
+            engagement=article.engagement_score,
+            size=base_size,
         )
 
         # Link to outcome based on sentiment
@@ -145,6 +168,69 @@ def _add_article_nodes(G: nx.DiGraph, articles: list[Article]):
         for politician in article.mentioned_entities:
             if politician in G:
                 G.add_edge(node_id, politician, relationship="MENTIONS", weight=0.3)
+
+        # Link social posts to their platform hub node (added later)
+        if is_social:
+            platform_node = f"Platform_{article.platform}"
+            if platform_node in G:
+                G.add_edge(node_id, platform_node, relationship="POSTED_ON", weight=0.4)
+
+
+def _add_social_platform_nodes(G: nx.DiGraph, articles: list[Article]):
+    """Add hub nodes for each social platform with aggregated sentiment."""
+    social_articles = [a for a in articles if a.platform != "rss"]
+    if not social_articles:
+        return
+
+    # Group by platform
+    platforms: dict[str, list[Article]] = {}
+    for a in social_articles:
+        platforms.setdefault(a.platform, []).append(a)
+
+    platform_meta = {
+        "reddit": {"label": "Reddit", "color": "#FF4500"},
+        "telegram": {"label": "Telegram", "color": "#0088CC"},
+        "bluesky": {"label": "Bluesky", "color": "#0085FF"},
+        "mastodon": {"label": "Mastodon", "color": "#6364FF"},
+        "youtube": {"label": "YouTube", "color": "#FF0000"},
+    }
+
+    for platform, arts in platforms.items():
+        node_id = f"Platform_{platform}"
+        meta = platform_meta.get(platform, {"label": platform.title(), "color": "#95a5a6"})
+
+        si_count = sum(1 for a in arts if a.sentiment_direction == "SI")
+        no_count = sum(1 for a in arts if a.sentiment_direction == "NO")
+        total = len(arts)
+        si_pct = si_count / total * 100 if total > 0 else 0
+        no_pct = no_count / total * 100 if total > 0 else 0
+
+        G.add_node(
+            node_id,
+            type="platform",
+            color=meta["color"],
+            label=f"{meta['label']}\n{total} post\nSI:{si_pct:.0f}% NO:{no_pct:.0f}%",
+            platform=platform,
+            post_count=total,
+            si_pct=si_pct,
+            no_pct=no_pct,
+            size=max(20, min(35, 20 + total * 0.5)),
+        )
+
+        # Connect platform to Referendum
+        G.add_edge(node_id, "Referendum", relationship="MONITORS", weight=0.5)
+
+        # Connect platform to outcome based on dominant sentiment
+        if si_pct > no_pct + 5:
+            G.add_edge(node_id, "SI", relationship="LEANS_TOWARD", weight=si_pct / 100 * 0.4)
+        elif no_pct > si_pct + 5:
+            G.add_edge(node_id, "NO", relationship="LEANS_TOWARD", weight=no_pct / 100 * 0.4)
+
+        # Link individual social posts to their platform
+        for a_node, a_data in list(G.nodes(data=True)):
+            if a_data.get("type") == "social" and a_data.get("platform") == platform:
+                if not G.has_edge(a_node, node_id):
+                    G.add_edge(a_node, node_id, relationship="POSTED_ON", weight=0.4)
 
 
 def _add_sentiment_aggregate(G: nx.DiGraph, articles: list[Article]):
@@ -249,6 +335,16 @@ def graph_to_plotly(G: nx.DiGraph) -> go.Figure:
         elif t == "article":
             hover_parts.append(f"Fonte: {data.get('source', '?')}")
             hover_parts.append(f"Sentiment: {data.get('sentiment', '?')}")
+        elif t == "social":
+            hover_parts.append(f"Fonte: {data.get('source', '?')}")
+            hover_parts.append(f"Piattaforma: {data.get('platform', '?')}")
+            hover_parts.append(f"Sentiment: {data.get('sentiment', '?')}")
+            eng = data.get('engagement')
+            if eng:
+                hover_parts.append(f"Engagement: {eng:.2f}")
+        elif t == "platform":
+            hover_parts.append(f"Post: {data.get('post_count', 0)}")
+            hover_parts.append(f"SI: {data.get('si_pct', 0):.0f}% | NO: {data.get('no_pct', 0):.0f}%")
         elif t == "party":
             hover_parts.append(f"Posizione: {data.get('position', '?')}")
             hover_parts.append(f"Consenso stimato: {data.get('support_pct', '?')}%")
@@ -262,6 +358,8 @@ def graph_to_plotly(G: nx.DiGraph) -> go.Figure:
         "politician": "Politici",
         "poll": "Sondaggi",
         "article": "Articoli",
+        "social": "Post Social",
+        "platform": "Piattaforme",
         "sentiment": "Sentiment",
     }
 

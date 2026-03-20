@@ -332,6 +332,8 @@ NODE_COLORS = {
     "politician": COLOR_POLITICIAN,
     "poll": COLOR_POLL,
     "article": COLOR_ARTICLE,
+    "social": "#8e44ad",
+    "platform": "#2980b9",
     "topic": COLOR_TOPIC,
     "referendum": "#2c3e50",
 }
