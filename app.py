@@ -75,6 +75,14 @@ components.html("""
 # --- CSS (rendered once, never refreshed) ---
 st.markdown("""
 <style>
+    /* Prevent fragment dimming/fading during background re-renders */
+    [data-stale="true"] {
+        opacity: 1 !important;
+    }
+    .stale-container {
+        opacity: 1 !important;
+    }
+
     /* Hide Streamlit Deploy button */
     .stDeployButton,
     .stAppDeployButton,
