@@ -31,33 +31,24 @@ st.set_page_config(
 # --- Viewport meta tag: prevent unwanted zoom on mobile ---
 # --- Google Analytics (invisible to visitors, data in GA dashboard) ---
 _GA_ID = os.environ.get("GA_MEASUREMENT_ID", "")
-_ga_snippet = ""
-if _GA_ID:
-    _ga_snippet = f"""
-    if (!window.parent.document.querySelector('script[src*="gtag"]')) {{
-        var s = document.createElement('script');
-        s.async = true;
-        s.src = 'https://www.googletagmanager.com/gtag/js?id={_GA_ID}';
-        window.parent.document.head.appendChild(s);
-        var s2 = document.createElement('script');
-        s2.textContent = "window.dataLayer=window.dataLayer||[];function gtag(){{dataLayer.push(arguments)}}gtag('js',new Date());gtag('config','{_GA_ID}');";
-        window.parent.document.head.appendChild(s2);
-    }}
-    """
 
-components.html(f"""
-<script>
-(function() {{
-    if (!document.querySelector('meta[name="viewport"]')) {{
-        var meta = document.createElement('meta');
-        meta.name = 'viewport';
-        meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-        window.parent.document.head.appendChild(meta);
-    }}
-    {_ga_snippet}
-}})();
-</script>
-""", height=0)
+# Inject GA + viewport via st.markdown (works reliably on Streamlit Cloud,
+# unlike components.html which runs in a sandboxed iframe).
+_head_html = ""
+if _GA_ID:
+    _head_html += f"""
+    <script async src="https://www.googletagmanager.com/gtag/js?id={_GA_ID}"></script>
+    <script>
+        window.dataLayer = window.dataLayer || [];
+        function gtag(){{dataLayer.push(arguments);}}
+        gtag('js', new Date());
+        gtag('config', '{_GA_ID}');
+    </script>
+    """
+_head_html += """
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+"""
+st.markdown(_head_html, unsafe_allow_html=True)
 
 # --- CSS (rendered once, never refreshed) ---
 st.markdown("""
