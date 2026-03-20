@@ -28,49 +28,45 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# --- Google Analytics + viewport meta (injected via components.html) ---
+# --- Google Analytics: patch Streamlit's index.html at startup ---
+# This injects GA directly into the real page (not an iframe),
+# which is the only reliable method on Streamlit Cloud.
 try:
     _GA_ID = st.secrets["GA_MEASUREMENT_ID"]
 except (KeyError, FileNotFoundError):
     _GA_ID = os.environ.get("GA_MEASUREMENT_ID", "")
 
-_ga_js = ""
 if _GA_ID:
-    _ga_js = f"""
-        // Google Analytics
-        var gaScript = document.createElement('script');
-        gaScript.async = true;
-        gaScript.src = 'https://www.googletagmanager.com/gtag/js?id={_GA_ID}';
-        parent.document.head.appendChild(gaScript);
-        gaScript.onload = function() {{
-            parent.window.dataLayer = parent.window.dataLayer || [];
-            function gtag(){{parent.window.dataLayer.push(arguments);}}
-            gtag('js', new Date());
-            gtag('config', '{_GA_ID}');
-        }};
-    """
+    from pathlib import Path
+    _index_path = Path(st.__file__).parent / "static" / "index.html"
+    if _index_path.exists():
+        _index_html = _index_path.read_text()
+        if _GA_ID not in _index_html:
+            _ga_tag = (
+                f'<script async src="https://www.googletagmanager.com/gtag/js?id={_GA_ID}"></script>\n'
+                f'<script>\n'
+                f'  window.dataLayer = window.dataLayer || [];\n'
+                f'  function gtag(){{dataLayer.push(arguments);}}\n'
+                f'  gtag("js", new Date());\n'
+                f'  gtag("config", "{_GA_ID}");\n'
+                f'</script>\n'
+            )
+            _index_path.write_text(_index_html.replace("</head>", _ga_tag + "</head>"))
 
-components.html(f"""
+# --- Viewport meta (via components.html, lightweight) ---
+components.html("""
 <script>
-(function() {{
-    try {{
-        var doc = parent.document;
-        // Viewport meta
-        if (!doc.querySelector('meta[name="viewport"]')) {{
+(function() {
+    try {
+        var doc = window.parent.document;
+        if (!doc.querySelector('meta[name="viewport"]')) {
             var meta = doc.createElement('meta');
             meta.name = 'viewport';
             meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
             doc.head.appendChild(meta);
-        }}
-        // GA: inject only once
-        if (!doc.querySelector('script[src*="googletagmanager"]')) {{
-            {_ga_js}
-        }}
-    }} catch(e) {{
-        // Cross-origin fallback: inject in own document
-        {_ga_js.replace("parent.", "").replace("parent.window", "window") if _ga_js else ""}
-    }}
-}})();
+        }
+    } catch(e) {}
+})();
 </script>
 """, height=0)
 
