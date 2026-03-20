@@ -28,30 +28,51 @@ st.set_page_config(
     initial_sidebar_state="collapsed",
 )
 
-# --- Viewport meta tag: prevent unwanted zoom on mobile ---
-# --- Google Analytics (invisible to visitors, data in GA dashboard) ---
+# --- Google Analytics + viewport meta (injected via components.html) ---
 try:
     _GA_ID = st.secrets["GA_MEASUREMENT_ID"]
 except (KeyError, FileNotFoundError):
     _GA_ID = os.environ.get("GA_MEASUREMENT_ID", "")
 
-# Inject GA + viewport via st.markdown (works reliably on Streamlit Cloud,
-# unlike components.html which runs in a sandboxed iframe).
-_head_html = ""
+_ga_js = ""
 if _GA_ID:
-    _head_html += f"""
-    <script async src="https://www.googletagmanager.com/gtag/js?id={_GA_ID}"></script>
-    <script>
-        window.dataLayer = window.dataLayer || [];
-        function gtag(){{dataLayer.push(arguments);}}
-        gtag('js', new Date());
-        gtag('config', '{_GA_ID}');
-    </script>
+    _ga_js = f"""
+        // Google Analytics
+        var gaScript = document.createElement('script');
+        gaScript.async = true;
+        gaScript.src = 'https://www.googletagmanager.com/gtag/js?id={_GA_ID}';
+        parent.document.head.appendChild(gaScript);
+        gaScript.onload = function() {{
+            parent.window.dataLayer = parent.window.dataLayer || [];
+            function gtag(){{parent.window.dataLayer.push(arguments);}}
+            gtag('js', new Date());
+            gtag('config', '{_GA_ID}');
+        }};
     """
-_head_html += """
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-"""
-st.markdown(_head_html, unsafe_allow_html=True)
+
+components.html(f"""
+<script>
+(function() {{
+    try {{
+        var doc = parent.document;
+        // Viewport meta
+        if (!doc.querySelector('meta[name="viewport"]')) {{
+            var meta = doc.createElement('meta');
+            meta.name = 'viewport';
+            meta.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
+            doc.head.appendChild(meta);
+        }}
+        // GA: inject only once
+        if (!doc.querySelector('script[src*="googletagmanager"]')) {{
+            {_ga_js}
+        }}
+    }} catch(e) {{
+        // Cross-origin fallback: inject in own document
+        {_ga_js.replace("parent.", "").replace("parent.window", "window") if _ga_js else ""}
+    }}
+}})();
+</script>
+""", height=0)
 
 # --- CSS (rendered once, never refreshed) ---
 st.markdown("""
