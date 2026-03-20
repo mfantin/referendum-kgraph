@@ -30,7 +30,10 @@ st.set_page_config(
 
 # --- Viewport meta tag: prevent unwanted zoom on mobile ---
 # --- Google Analytics (invisible to visitors, data in GA dashboard) ---
-_GA_ID = os.environ.get("GA_MEASUREMENT_ID", "")
+try:
+    _GA_ID = st.secrets["GA_MEASUREMENT_ID"]
+except (KeyError, FileNotFoundError):
+    _GA_ID = os.environ.get("GA_MEASUREMENT_ID", "")
 
 # Inject GA + viewport via st.markdown (works reliably on Streamlit Cloud,
 # unlike components.html which runs in a sandboxed iframe).
