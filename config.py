@@ -507,7 +507,7 @@ SIGNAL_WEIGHTS = {
 HISTORICAL_POLL_ERROR = 0.13
 
 # --- Exit Poll Configuration ---
-EXIT_POLL_AVAILABLE_AFTER = datetime(2026, 3, 23, 14, 0)  # 15:00 CET = 14:00 UTC
+EXIT_POLL_AVAILABLE_AFTER = datetime(2026, 3, 23, 12, 0)  # Seggi chiusi alle 15 CET, exit poll disponibili subito dopo
 
 EXIT_POLL_KEYWORDS = [
     "exit poll", "exit-poll", "exitpoll",
