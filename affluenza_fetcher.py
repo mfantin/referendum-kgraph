@@ -42,6 +42,13 @@ KNOWN_AFFLUENZA = [
         "fonte": "Ministero dell'Interno (eligendo.it)",
         "dettaglio": "Chiusura primo giorno - record per referendum su due giorni nel III millennio",
     },
+    {
+        "data": "2026-03-23",
+        "ora": "15:00",
+        "percentuale": 58.54,
+        "fonte": "Ministero dell'Interno (eligendo.it)",
+        "dettaglio": "Affluenza finale alla chiusura seggi (fonte: ilmessaggero.it)",
+    },
 ]
 
 # Regional breakdown at 23:00 del 22 marzo (top/bottom)

@@ -162,103 +162,116 @@ PARTY_POSITIONS = {
     },
 }
 
-# --- Known Polls (pre-seeded) ---
+# --- Known Polls (real data from verified sources) ---
+# Sources: YouTrend/Agi Supermedia, Ipsos, SWG, Tecnè, BiDiMedia, Ixè, Piepoli
 KNOWN_POLLS = [
+    # Media finale pre-silenzio (Supermedia Agi/YouTrend)
     {
-        "source": "Ipsos (Corriere della Sera)",
-        "date": "2026-03-20",
-        "si_pct": 45.5,
-        "no_pct": 54.5,
-        "sample_size": 1200,
-        "note": "Ultimo sondaggio pre-silenzio elettorale",
+        "source": "Supermedia Agi/YouTrend",
+        "date": "2026-03-07",
+        "si_pct": 50.5,
+        "no_pct": 49.5,
+        "sample_size": None,
+        "note": "Media ponderata pre-silenzio elettorale (fonte: sondaggibidimedia.com)",
     },
+    # Ipsos/Doxa (5 marzo) — scenario affluenza 42%
+    {
+        "source": "Ipsos Doxa (Corriere)",
+        "date": "2026-03-05",
+        "si_pct": 47.6,
+        "no_pct": 52.4,
+        "sample_size": 1000,
+        "note": "Scenario affluenza 42% (fonte: ipsos.com)",
+    },
+    # Ipsos/Doxa (5 marzo) — scenario affluenza 49%
+    {
+        "source": "Ipsos Doxa (Corriere) - alta affluenza",
+        "date": "2026-03-05",
+        "si_pct": 50.2,
+        "no_pct": 49.8,
+        "sample_size": 1000,
+        "note": "Scenario affluenza 49% (fonte: ipsos.com)",
+    },
+    # SWG (6 marzo)
     {
         "source": "SWG (La7)",
-        "date": "2026-03-19",
-        "si_pct": 47.0,
-        "no_pct": 53.0,
-        "sample_size": 1500,
-        "note": "Ultimo sondaggio pre-silenzio elettorale",
-    },
-    {
-        "source": "Tecnè (Rete 4)",
-        "date": "2026-03-18",
-        "si_pct": 48.5,
-        "no_pct": 51.5,
-        "sample_size": 1000,
-        "note": "Tra chi ha deciso",
-    },
-    {
-        "source": "EMG Different (Rai)",
-        "date": "2026-03-17",
-        "si_pct": 46.0,
-        "no_pct": 54.0,
-        "sample_size": 1200,
-        "note": "Tra chi ha deciso",
-    },
-    {
-        "source": "Piepoli (Italia 1)",
-        "date": "2026-03-16",
-        "si_pct": 47.5,
-        "no_pct": 52.5,
-        "sample_size": 800,
-        "note": "Tra chi ha deciso",
-    },
-    {
-        "source": "Demos & Pi (Repubblica)",
-        "date": "2026-03-15",
-        "si_pct": 44.0,
-        "no_pct": 56.0,
-        "sample_size": 1100,
-        "note": "Tra chi ha deciso",
-    },
-    {
-        "source": "Ipsos",
-        "date": "2026-03-10",
-        "si_pct": 46.0,
-        "no_pct": 54.0,
-        "sample_size": 1000,
-        "note": "Tra chi ha deciso",
-    },
-    {
-        "source": "SWG",
-        "date": "2026-03-08",
+        "date": "2026-03-06",
         "si_pct": 48.0,
         "no_pct": 52.0,
         "sample_size": 1500,
-        "note": "Tra chi ha deciso",
+        "note": "Fonte: quifinanza.it / Il Giornale d'Italia",
     },
+    # YouTrend/Sky (27 febbraio)
     {
-        "source": "EMG",
-        "date": "2026-03-05",
-        "si_pct": 47.0,
-        "no_pct": 53.0,
-        "sample_size": 1200,
-        "note": "Tra chi ha deciso",
+        "source": "YouTrend (Sky TG24)",
+        "date": "2026-02-27",
+        "si_pct": 50.0,
+        "no_pct": 50.0,
+        "sample_size": 809,
+        "note": "Scenario alta affluenza 55.4% (fonte: tg24.sky.it). CAWI.",
     },
+    # BiDiMedia (23-24 febbraio)
     {
-        "source": "Tecnè",
-        "date": "2026-03-03",
-        "si_pct": 49.0,
-        "no_pct": 51.0,
+        "source": "BiDiMedia (First)",
+        "date": "2026-02-24",
+        "si_pct": 51.5,
+        "no_pct": 48.5,
+        "sample_size": 2000,
+        "note": "Valore medio range 51-52.5% SI (fonte: truenumbers.it)",
+    },
+    # Tecnè (17-19 febbraio)
+    {
+        "source": "Tecnè (RTI)",
+        "date": "2026-02-19",
+        "si_pct": 55.0,
+        "no_pct": 45.0,
+        "sample_size": 2012,
+        "note": "Valore medio range 54-56% SI (fonte: truenumbers.it)",
+    },
+    # Only Numbers (17 febbraio)
+    {
+        "source": "Only Numbers (Porta a Porta)",
+        "date": "2026-02-17",
+        "si_pct": 52.3,
+        "no_pct": 47.7,
         "sample_size": 1000,
-        "note": "Tra chi ha deciso",
+        "note": "Voti validi (fonte: truenumbers.it)",
     },
+    # Ipsos (16 febbraio) — media range
     {
-        "source": "Euromedia",
-        "date": "2026-02-28",
-        "si_pct": 45.0,
-        "no_pct": 55.0,
+        "source": "Ipsos (Corriere)",
+        "date": "2026-02-16",
+        "si_pct": 51.5,
+        "no_pct": 48.5,
+        "sample_size": 1000,
+        "note": "Valore medio range 49.4-53.7% SI (fonte: truenumbers.it)",
+    },
+    # Ixè (17-23 febbraio)
+    {
+        "source": "Ixè",
+        "date": "2026-02-23",
+        "si_pct": 47.2,
+        "no_pct": 52.8,
+        "sample_size": 1200,
+        "note": "Valore medio range 45.7-48.7% SI (fonte: truenumbers.it)",
+    },
+    # Demopolis (18-19 febbraio)
+    {
+        "source": "Demopolis (Otto e Mezzo)",
+        "date": "2026-02-19",
+        "si_pct": 49.4,
+        "no_pct": 50.6,
+        "sample_size": 2000,
+        "note": "40% SI vs 41% NO su totale, ricalcolato su voti validi (fonte: truenumbers.it)",
+    },
+    # Piepoli (marzo)
+    {
+        "source": "Piepoli",
+        "date": "2026-03-01",
+        "si_pct": 54.0,
+        "no_pct": 46.0,
         "sample_size": 800,
-        "note": "Tra chi ha deciso",
-    },
-    {
-        "source": "Quorum/YouTrend",
-        "date": "2026-02-25",
-        "si_pct": 46.5,
-        "no_pct": 53.5,
-        "sample_size": 1500,
-        "note": "Tra chi ha deciso",
+        "note": "Fonte: sardegnagol.eu",
     },
 ]
 
