@@ -45,9 +45,9 @@ KNOWN_AFFLUENZA = [
     {
         "data": "2026-03-23",
         "ora": "15:00",
-        "percentuale": 58.54,
+        "percentuale": 58.9,
         "fonte": "Ministero dell'Interno (eligendo.it)",
-        "dettaglio": "Affluenza finale alla chiusura seggi (fonte: ilmessaggero.it)",
+        "dettaglio": "Affluenza finale alla chiusura seggi (fonte: eligendo.it)",
     },
 ]
 
