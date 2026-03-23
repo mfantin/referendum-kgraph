@@ -287,6 +287,19 @@ if "discovery_running" not in st.session_state:
     st.session_state.discovery_running = False
 if "discovery_last_run" not in st.session_state:
     st.session_state.discovery_last_run = None
+# Persistent data: survives across fragment re-renders
+if "cached_articles" not in st.session_state:
+    st.session_state.cached_articles = []
+if "cached_feed_statuses" not in st.session_state:
+    st.session_state.cached_feed_statuses = []
+if "cached_polls" not in st.session_state:
+    st.session_state.cached_polls = list(config.KNOWN_POLLS)
+if "cached_graph" not in st.session_state:
+    st.session_state.cached_graph = None
+if "cached_prediction" not in st.session_state:
+    st.session_state.cached_prediction = None
+if "data_last_fetch" not in st.session_state:
+    st.session_state.data_last_fetch = None
 
 # --- Sidebar (static, outside fragment) ---
 with st.sidebar:
@@ -363,24 +376,36 @@ components.html("""
 """, height=0)
 
 
-# --- Cached data loading functions ---
-@st.cache_data(ttl=data_refresh, show_spinner=False)
-def _load_data_cached(extra_feeds_keys=None, extra_feeds=None):
-    articles, statuses = fetch_all_feeds(extra_feeds)
-    polls = get_all_polls(articles)
-    return articles, statuses, polls
+# --- Background data + discovery (never blocks UI rendering) ---
+_data_lock = threading.Lock()
+_data_result = {"articles": [], "statuses": [], "polls": list(config.KNOWN_POLLS), "running": False}
 
-
-# --- Background discovery (runs in a separate thread, never blocks UI) ---
 _discovery_lock = threading.Lock()
 _discovery_result = {"sources": [], "feeds": {}, "running": False}
 
 
+def _run_data_fetch_background(extra_feeds=None):
+    """Fetch articles/polls in background thread. Results stored in module-level dict."""
+    if _data_result["running"]:
+        return
+    _data_result["running"] = True
+    try:
+        articles, statuses = fetch_all_feeds(extra_feeds)
+        polls = get_all_polls(articles)
+        with _data_lock:
+            _data_result["articles"] = articles
+            _data_result["statuses"] = statuses
+            _data_result["polls"] = polls
+    except Exception:
+        pass
+    finally:
+        _data_result["running"] = False
+
+
 def _run_discovery_background():
     """Runs discovery in a background thread. Results stored in module-level dict."""
-    global _discovery_result
     if _discovery_result["running"]:
-        return  # Already running
+        return
     _discovery_result["running"] = True
     try:
         discovered = discover_sources(max_new=50)
@@ -401,6 +426,20 @@ def _run_discovery_background():
         _discovery_result["running"] = False
 
 
+def _maybe_start_data_fetch(interval: int):
+    """Start background data fetch if enough time has passed."""
+    now = _time.time()
+    last = st.session_state.get("data_last_fetch")
+    if last is None or (now - last) >= interval:
+        st.session_state.data_last_fetch = now
+        extra = None
+        with _discovery_lock:
+            if _discovery_result["feeds"]:
+                extra = dict(_discovery_result["feeds"])
+        thread = threading.Thread(target=_run_data_fetch_background, args=(extra,), daemon=True)
+        thread.start()
+
+
 def _maybe_start_discovery(interval: int = 120):
     """Start background discovery if enough time has passed since last run."""
     now = _time.time()
@@ -417,33 +456,51 @@ def _maybe_start_discovery(interval: int = 120):
 # ============================================================
 @st.fragment(run_every=timedelta(seconds=data_refresh))
 def live_dashboard():
-    # --- Source Discovery (background, never blocks UI) ---
+    # --- Kick off background tasks (never block rendering) ---
     if show_discovery:
         _maybe_start_discovery(interval=max(data_refresh, 120))
+    _maybe_start_data_fetch(interval=data_refresh)
 
-    # Pick up latest discovery results (may be from a previous run)
+    # --- Pick up latest results from background threads ---
     with _discovery_lock:
         discovered = _discovery_result["sources"]
         extra = _discovery_result["feeds"]
 
-    # Also keep session_state in sync for the discovery tab
     st.session_state.discovered_sources = discovered
     st.session_state.discovered_feeds = extra
     st.session_state.discovery_running = _discovery_result["running"]
 
-    # --- Load data ---
-    try:
-        extra_keys = tuple(sorted(extra.keys())) if extra else None
-        is_first_load = st.session_state.fetch_count == 0
-        if is_first_load:
-            with st.spinner("Caricamento dati in corso... raccolta fonti, social media e sondaggi"):
-                articles, feed_statuses, polls = _load_data_cached(extra_keys, extra if extra else None)
-        else:
-            articles, feed_statuses, polls = _load_data_cached(extra_keys, extra if extra else None)
+    # --- Use latest data, falling back to previous data from session_state ---
+    with _data_lock:
+        new_articles = _data_result["articles"]
+        new_statuses = _data_result["statuses"]
+        new_polls = _data_result["polls"]
+
+    # Update session_state cache only when we have real data
+    if new_articles or new_statuses:
+        st.session_state.cached_articles = new_articles
+        st.session_state.cached_feed_statuses = new_statuses
+        st.session_state.cached_polls = new_polls
         st.session_state.fetch_count += 1
-    except Exception as e:
-        st.error(f"Errore nel caricamento dati: {str(e)}")
-        articles, feed_statuses, polls = [], [], config.KNOWN_POLLS
+
+    # Always render from session_state (never empty)
+    articles = st.session_state.cached_articles
+    feed_statuses = st.session_state.cached_feed_statuses
+    polls = st.session_state.cached_polls
+
+    # First load: do a synchronous fetch so the page isn't empty
+    if st.session_state.fetch_count == 0 and not articles:
+        with st.spinner("Caricamento dati in corso... raccolta fonti, social media e sondaggi"):
+            try:
+                articles, feed_statuses = fetch_all_feeds(extra if extra else None)
+                polls = get_all_polls(articles)
+                st.session_state.cached_articles = articles
+                st.session_state.cached_feed_statuses = feed_statuses
+                st.session_state.cached_polls = polls
+                st.session_state.fetch_count = 1
+            except Exception as e:
+                st.error(f"Errore nel caricamento dati: {str(e)}")
+                articles, feed_statuses, polls = [], [], config.KNOWN_POLLS
 
     # --- Collect Exit Polls ---
     exit_polls = collect_exit_polls(articles) if is_exit_poll_time() else []
@@ -1129,6 +1186,19 @@ def live_dashboard():
         st.markdown("#### Changelog versioni")
 
         versions = [
+            {
+                "Versione": "4.0",
+                "Data": "23 marzo 2026",
+                "Novita": (
+                    "7 segnali di predizione (da 5). "
+                    "Social Sentiment con engagement weighting. "
+                    "Consenso Cross-Platform. Sondaggi sintetici dai social. "
+                    "Fetcher diretti Reddit/Telegram/Bluesky/Mastodon (no API key). "
+                    "12 sondaggi pre-seed (da 5). "
+                    "Background data fetch: i dati non scompaiono durante il refresh. "
+                    "Cap confidenza alzato a 92%."
+                ),
+            },
             {
                 "Versione": "3.0",
                 "Data": "19 marzo 2026",
