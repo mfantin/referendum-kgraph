@@ -285,51 +285,24 @@ def _extract_affluenza_from_articles(articles) -> list[RilevazioneAffluenza]:
 
 def fetch_affluenza(articles=None) -> AffluenzaData:
     """
-    Fetch turnout data from all available sources.
-    Priority: 1) known official data, 2) eligendo.it scraping, 3) news articles
+    Fetch turnout data. Uses KNOWN_AFFLUENZA (verified official data only).
+    Article extraction disabled: too error-prone (picks up regional data,
+    partial percentages, and non-national figures).
     """
     data = AffluenzaData()
-    seen_keys: set[tuple[float, str]] = set()
 
-    # 1. Start with known official data (always available, reliable)
     for entry in KNOWN_AFFLUENZA:
-        r = RilevazioneAffluenza(
-            timestamp=datetime.fromisoformat(f"{entry['data']}T{entry['ora']}:00+00:00"),
+        ts = datetime.fromisoformat(f"{entry['data']}T{entry['ora']}:00+00:00")
+        data.rilevazioni.append(RilevazioneAffluenza(
+            timestamp=ts,
             percentuale=entry["percentuale"],
-            ora_rilevazione=f"{entry['data'][-5:]} {entry['ora']}",
+            ora_rilevazione=f"{entry['data'][5:]} ore {entry['ora']}",
             fonte=entry["fonte"],
             dettaglio=entry.get("dettaglio", ""),
-        )
-        key = (r.percentuale, entry["ora"])
-        if key not in seen_keys:
-            data.rilevazioni.append(r)
-            seen_keys.add(key)
+        ))
 
-    # 2. Try official eligendo.it (may have newer data)
-    try:
-        official = _try_fetch_eligendo()
-        for r in official:
-            key = (r.percentuale, r.ora_rilevazione)
-            if key not in seen_keys:
-                data.rilevazioni.append(r)
-                seen_keys.add(key)
-    except Exception as e:
-        logger.warning(f"Eligendo fetch error: {e}")
-
-    # 3. Extract from articles as supplement (may catch 23 marzo data)
-    if articles:
-        try:
-            from_articles = _extract_affluenza_from_articles(articles)
-            for r in from_articles:
-                key = (r.percentuale, r.ora_rilevazione)
-                if key not in seen_keys:
-                    data.rilevazioni.append(r)
-                    seen_keys.add(key)
-        except Exception as e:
-            logger.warning(f"Article affluenza extraction error: {e}")
-
-    # Sort by timestamp (chronological order)
-    data.rilevazioni.sort(key=lambda r: r.ora_rilevazione)
+    # Sort chronologically by timestamp
+    data.rilevazioni.sort(key=lambda r: r.timestamp)
 
     if data.rilevazioni:
         data.ultima_rilevazione = data.rilevazioni[-1]
