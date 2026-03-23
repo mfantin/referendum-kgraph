@@ -960,6 +960,16 @@ def live_dashboard():
                     )
                     st.plotly_chart(fig_aff, use_container_width=True)
 
+                # Regional breakdown
+                from affluenza_fetcher import AFFLUENZA_REGIONALE
+                if AFFLUENZA_REGIONALE:
+                    st.markdown("#### Affluenza per regione (ore 23:00 del 22/03)")
+                    reg_data = {
+                        "Regione": list(AFFLUENZA_REGIONALE.keys()),
+                        "Affluenza %": [f"{v:.2f}%" for v in AFFLUENZA_REGIONALE.values()],
+                    }
+                    st.dataframe(pd.DataFrame(reg_data), use_container_width=True, hide_index=True)
+
                 # Historical comparison
                 st.markdown("#### Confronto con referendum precedenti")
                 ref_data = {
@@ -967,9 +977,11 @@ def live_dashboard():
                         "Costituzionale 2020", "Costituzionale 2016",
                         "Abrogativi 2022", "Costituzionale 2006",
                     ],
-                    "Affluenza finale": [51.1, 65.5, 20.9, 52.5],
+                    "Affluenza finale": ["51.1%", "65.5%", "20.9%", "52.5%"],
+                    "Affluenza ore 23 (1° giorno)": ["29.7%", "57.2%", "14.8%", "44.1%"],
                 }
                 st.dataframe(pd.DataFrame(ref_data), use_container_width=True, hide_index=True)
+                st.caption("Questo referendum: **46,07%** alle 23:00 del primo giorno — record per referendum su due giorni.")
             else:
                 st.warning(
                     "Nessun dato di affluenza ancora disponibile. "

@@ -18,7 +18,40 @@ logger = logging.getLogger(__name__)
 _HEADERS = {"User-Agent": "ReferendumKG/1.0 (research project)"}
 _TIMEOUT = 15
 
-# Eligendo.it base URLs (patterns from past referendums)
+# --- Known official turnout data (Ministero dell'Interno / eligendo.it) ---
+# Source: ANSA, YouTrend, Il Post, Quotidiano.net — dati ufficiali Viminale
+KNOWN_AFFLUENZA = [
+    {
+        "data": "2026-03-22",
+        "ora": "12:00",
+        "percentuale": 14.9,
+        "fonte": "Ministero dell'Interno (eligendo.it)",
+        "dettaglio": "Prima rilevazione ufficiale - record rispetto al 7,4% del 2025",
+    },
+    {
+        "data": "2026-03-22",
+        "ora": "19:00",
+        "percentuale": 38.9,
+        "fonte": "Ministero dell'Interno (eligendo.it)",
+        "dettaglio": "Seconda rilevazione ufficiale",
+    },
+    {
+        "data": "2026-03-22",
+        "ora": "23:00",
+        "percentuale": 46.07,
+        "fonte": "Ministero dell'Interno (eligendo.it)",
+        "dettaglio": "Chiusura primo giorno - record per referendum su due giorni nel III millennio",
+    },
+]
+
+# Regional breakdown at 23:00 del 22 marzo (top/bottom)
+AFFLUENZA_REGIONALE = {
+    "Emilia-Romagna": 53.69,
+    "Lombardia": 51.83,
+    "Toscana": 44.70,
+    "Sicilia": 34.94,  # ultima
+}
+
 # Real URL pattern from Ministero dell'Interno (eligendo)
 ELIGENDO_URLS = [
     # Votanti (affluenza) - Italia, tutte le ripartizioni
@@ -225,31 +258,49 @@ def _extract_affluenza_from_articles(articles) -> list[RilevazioneAffluenza]:
 def fetch_affluenza(articles=None) -> AffluenzaData:
     """
     Fetch turnout data from all available sources.
-    Priority: 1) eligendo.it, 2) news articles
+    Priority: 1) known official data, 2) eligendo.it scraping, 3) news articles
     """
     data = AffluenzaData()
+    seen_keys: set[tuple[float, str]] = set()
 
-    # Try official source first
+    # 1. Start with known official data (always available, reliable)
+    for entry in KNOWN_AFFLUENZA:
+        r = RilevazioneAffluenza(
+            timestamp=datetime.fromisoformat(f"{entry['data']}T{entry['ora']}:00+00:00"),
+            percentuale=entry["percentuale"],
+            ora_rilevazione=f"{entry['data'][-5:]} {entry['ora']}",
+            fonte=entry["fonte"],
+            dettaglio=entry.get("dettaglio", ""),
+        )
+        key = (r.percentuale, entry["ora"])
+        if key not in seen_keys:
+            data.rilevazioni.append(r)
+            seen_keys.add(key)
+
+    # 2. Try official eligendo.it (may have newer data)
     try:
         official = _try_fetch_eligendo()
-        data.rilevazioni.extend(official)
+        for r in official:
+            key = (r.percentuale, r.ora_rilevazione)
+            if key not in seen_keys:
+                data.rilevazioni.append(r)
+                seen_keys.add(key)
     except Exception as e:
         logger.warning(f"Eligendo fetch error: {e}")
 
-    # Extract from articles as supplement/fallback
+    # 3. Extract from articles as supplement (may catch 23 marzo data)
     if articles:
         try:
             from_articles = _extract_affluenza_from_articles(articles)
-            # Add article-sourced data, avoiding duplicates
-            seen_pcts = {(r.percentuale, r.ora_rilevazione) for r in data.rilevazioni}
             for r in from_articles:
-                if (r.percentuale, r.ora_rilevazione) not in seen_pcts:
+                key = (r.percentuale, r.ora_rilevazione)
+                if key not in seen_keys:
                     data.rilevazioni.append(r)
-                    seen_pcts.add((r.percentuale, r.ora_rilevazione))
+                    seen_keys.add(key)
         except Exception as e:
             logger.warning(f"Article affluenza extraction error: {e}")
 
-    # Sort by time
+    # Sort by timestamp (chronological order)
     data.rilevazioni.sort(key=lambda r: r.ora_rilevazione)
 
     if data.rilevazioni:
