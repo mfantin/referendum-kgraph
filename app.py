@@ -21,6 +21,7 @@ from kg_builder import build_graph, graph_to_plotly, get_graph_stats
 from predictor import predict
 from source_discovery import discover_sources, get_discovery_stats
 from exit_poll import collect_exit_polls, is_exit_poll_time, aggregate_exit_polls
+from affluenza_fetcher import fetch_affluenza
 
 # --- Page Config ---
 st.set_page_config(
@@ -568,10 +569,11 @@ def live_dashboard():
     )
 
     # --- Tabs ---
-    tab_kg, tab_pred, tab_exitpoll, tab_party, tab_articles, tab_discovery, tab_method = st.tabs([
+    tab_kg, tab_pred, tab_exitpoll, tab_affluenza, tab_party, tab_articles, tab_discovery, tab_method = st.tabs([
         "\U0001f578\ufe0f Knowledge Graph",
         "\U0001f4ca Predizione",
         "\U0001f3af Exit Poll",
+        "\U0001f3f3\ufe0f Affluenza",
         "\U0001f3db\ufe0f Partiti",
         "\U0001f4f0 Articoli",
         "\U0001f50d Discovery",
@@ -868,7 +870,117 @@ def live_dashboard():
                 "Gli agenti continuano a cercare - i dati appariranno automaticamente."
             )
 
-    # --- Tab 4: Partiti ---
+    # --- Tab 4: Affluenza ---
+    with tab_affluenza:
+        st.markdown("### Affluenza - Ministero dell'Interno")
+
+        # Check if we're in voting window
+        now_utc = datetime.now(timezone.utc)
+        voting_start = datetime(2026, 3, 22, 6, 0, tzinfo=timezone.utc)  # 7:00 CET
+        voting_end = datetime(2026, 3, 23, 14, 0, tzinfo=timezone.utc)   # 15:00 CET
+
+        if now_utc < voting_start:
+            st.info(
+                "Le rilevazioni di affluenza saranno disponibili durante la votazione "
+                "(22 marzo ore 07:00 - 23 marzo ore 15:00). "
+                "I dati vengono pubblicati dal Ministero dell'Interno su eligendo.it "
+                "alle ore 12:00, 19:00, 23:00 (sabato) e 15:00 (domenica)."
+            )
+            # Show historical reference
+            st.markdown("#### Affluenza referendari storici (riferimento)")
+            ref_data = {
+                "Referendum": [
+                    "Costituzionale 2020 (taglio parlamentari)",
+                    "Costituzionale 2016 (Renzi)",
+                    "Abrogativi 2022 (giustizia)",
+                    "Costituzionale 2006 (devolution)",
+                ],
+                "Affluenza finale": ["51.1%", "65.5%", "20.9%", "52.5%"],
+                "Quorum necessario": ["No", "No", "Si (non raggiunto)", "No"],
+            }
+            st.dataframe(pd.DataFrame(ref_data), use_container_width=True, hide_index=True)
+            st.caption(
+                "I referendum costituzionali (confermativo) **non richiedono quorum**. "
+                "Il risultato e valido indipendentemente dall'affluenza."
+            )
+        else:
+            # Voting is ongoing or ended — fetch live data
+            affluenza = fetch_affluenza(articles)
+
+            if affluenza.rilevazioni:
+                # Show latest reading prominently
+                ultima = affluenza.ultima_rilevazione
+                st.markdown(
+                    f"<div style='text-align:center; padding:1rem; "
+                    f"background:linear-gradient(135deg, #1a1a2e, #16213e); "
+                    f"border-radius:10px; margin-bottom:1rem;'>"
+                    f"<p style='color:#adb5bd; margin:0; font-size:0.9rem;'>Ultima rilevazione</p>"
+                    f"<p style='color:white; margin:0; font-size:3rem; font-weight:bold;'>"
+                    f"{ultima.percentuale:.1f}%</p>"
+                    f"<p style='color:#adb5bd; margin:0;'>alle ore {ultima.ora_rilevazione}</p>"
+                    f"<p style='color:#6c757d; margin:0; font-size:0.8rem;'>"
+                    f"Fonte: {ultima.fonte}</p>"
+                    f"</div>",
+                    unsafe_allow_html=True,
+                )
+
+                # Timeline of all readings
+                st.markdown("#### Rilevazioni")
+                for r in affluenza.rilevazioni:
+                    col_t, col_p, col_f = st.columns([1, 2, 3])
+                    col_t.markdown(f"**{r.ora_rilevazione}**")
+                    col_p.markdown(f"**{r.percentuale:.1f}%**")
+                    col_f.caption(r.fonte)
+
+                # Chart if multiple readings
+                if len(affluenza.rilevazioni) >= 2:
+                    st.markdown("#### Andamento affluenza")
+                    chart_data = {
+                        "Ora": [r.ora_rilevazione for r in affluenza.rilevazioni],
+                        "Affluenza %": [r.percentuale for r in affluenza.rilevazioni],
+                    }
+                    fig_aff = go.Figure()
+                    fig_aff.add_trace(go.Scatter(
+                        x=chart_data["Ora"],
+                        y=chart_data["Affluenza %"],
+                        mode="lines+markers+text",
+                        text=[f"{v:.1f}%" for v in chart_data["Affluenza %"]],
+                        textposition="top center",
+                        line=dict(color="#3498db", width=3),
+                        marker=dict(size=10),
+                    ))
+                    fig_aff.update_layout(
+                        yaxis_title="Affluenza %",
+                        xaxis_title="Ora rilevazione",
+                        height=300,
+                        margin=dict(t=20, b=40, l=50, r=20),
+                    )
+                    st.plotly_chart(fig_aff, use_container_width=True)
+
+                # Historical comparison
+                st.markdown("#### Confronto con referendum precedenti")
+                ref_data = {
+                    "Referendum": [
+                        "Costituzionale 2020", "Costituzionale 2016",
+                        "Abrogativi 2022", "Costituzionale 2006",
+                    ],
+                    "Affluenza finale": [51.1, 65.5, 20.9, 52.5],
+                }
+                st.dataframe(pd.DataFrame(ref_data), use_container_width=True, hide_index=True)
+            else:
+                st.warning(
+                    "Nessun dato di affluenza ancora disponibile. "
+                    "I dati verranno cercati automaticamente su eligendo.it "
+                    "e nei feed RSS a ogni refresh."
+                )
+
+            st.caption(
+                "Fonte primaria: [Ministero dell'Interno - eligendo.it]"
+                "(https://elezioni.interno.gov.it/) | "
+                "I referendum costituzionali **non richiedono quorum**."
+            )
+
+    # --- Tab 5: Partiti ---
     with tab_party:
         pc1, pc2 = st.columns(2)
         si_parties = {k: v for k, v in config.PARTY_POSITIONS.items() if v["position"] == "SI"}
