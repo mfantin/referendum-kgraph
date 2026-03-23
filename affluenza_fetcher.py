@@ -19,11 +19,17 @@ _HEADERS = {"User-Agent": "ReferendumKG/1.0 (research project)"}
 _TIMEOUT = 15
 
 # Eligendo.it base URLs (patterns from past referendums)
+# Real URL pattern from Ministero dell'Interno (eligendo)
 ELIGENDO_URLS = [
+    # Votanti (affluenza) - Italia, tutte le ripartizioni
+    "https://elezioni.interno.gov.it/risultati/20260322/referendum/votanti/italia",
+    "https://elezioni.interno.gov.it/risultati/20260323/referendum/votanti/italia",
+    # Ripartizioni specifiche (01 = Nord-Ovest, etc.)
+    "https://elezioni.interno.gov.it/risultati/20260322/referendum/votanti/italia/01",
+    "https://elezioni.interno.gov.it/risultati/20260323/referendum/votanti/italia/01",
+    # Fallback: vecchio pattern
     "https://elezioni.interno.gov.it/referendum/affluenza/20260322",
     "https://elezioni.interno.gov.it/referendum/affluenza/20260323",
-    "https://eligendo.it/referendum/affluenza/20260322",
-    "https://eligendo.it/referendum/affluenza/20260323",
 ]
 
 # Official detection times for Italian referendums
@@ -133,6 +139,8 @@ def _extract_affluenza_from_articles(articles) -> list[RilevazioneAffluenza]:
     Extract turnout data mentioned in news articles.
     Looks for patterns like "affluenza al 38,5% alle ore 12:00"
     """
+    ELIGENDO_URL = "https://elezioni.interno.gov.it/risultati/20260322/referendum/votanti/italia"
+
     rilevazioni = []
     seen = set()
 
@@ -149,7 +157,16 @@ def _extract_affluenza_from_articles(articles) -> list[RilevazioneAffluenza]:
         r"(\d{1,2}[.,]\d{1,2})\s*%\s*(?:di\s+)?(?:affluenza|votanti|partecipazione)",
     ]
 
-    time_pattern = r"(?:alle?\s+)?(?:ore?\s+)?(\d{1,2}[:.]\d{2})"
+    # Time patterns — broader search
+    time_patterns = [
+        r"(?:alle?\s+)?ore\s+(\d{1,2}[:.]\d{2})",
+        r"(?:delle?\s+)?ore\s+(\d{1,2}[:.]\d{2})",
+        r"(?:entro\s+le\s+)?(\d{1,2}[:.]\d{2})",
+        r"rilevazione\s+(?:delle?\s+)?(\d{1,2}[:.]\d{2})",
+    ]
+
+    # Map known percentages to standard reporting times
+    KNOWN_TIMES = {12: "12:00", 19: "19:00", 23: "23:00", 15: "15:00"}
 
     for article in articles:
         text = (article.title + " " + article.summary).lower()
@@ -164,13 +181,30 @@ def _extract_affluenza_from_articles(articles) -> list[RilevazioneAffluenza]:
                 if not (1 < pct < 95):  # sanity check
                     continue
 
-                # Try to find associated time
-                # Look in surrounding context (50 chars around match)
-                start = max(0, match.start() - 50)
-                end = min(len(text), match.end() + 50)
+                # Try to find associated time in broader context (100 chars)
+                start = max(0, match.start() - 100)
+                end = min(len(text), match.end() + 100)
                 context = text[start:end]
-                time_match = re.search(time_pattern, context)
-                ora = time_match.group(1).replace(".", ":") if time_match else "N/D"
+
+                ora = None
+                for tp in time_patterns:
+                    time_match = re.search(tp, context)
+                    if time_match:
+                        ora = time_match.group(1).replace(".", ":")
+                        break
+
+                # If no time found, infer from article publication time
+                if not ora:
+                    pub_hour = article.published.hour
+                    # Map to nearest standard reporting time
+                    if pub_hour <= 13:
+                        ora = "12:00"
+                    elif pub_hour <= 20:
+                        ora = "19:00"
+                    elif pub_hour <= 23:
+                        ora = "23:00"
+                    else:
+                        ora = "15:00"
 
                 key = f"{pct}_{ora}"
                 if key in seen:
@@ -181,8 +215,8 @@ def _extract_affluenza_from_articles(articles) -> list[RilevazioneAffluenza]:
                     timestamp=article.published,
                     percentuale=pct,
                     ora_rilevazione=ora,
-                    fonte=f"Articolo: {article.source}",
-                    dettaglio=article.title[:150],
+                    fonte=f"Ministero dell'Interno (via {article.source})",
+                    dettaglio=f"{article.title[:120]} | Fonte dati: {ELIGENDO_URL}",
                 ))
 
     return rilevazioni

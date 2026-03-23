@@ -920,6 +920,9 @@ def live_dashboard():
                     f"<p style='color:#adb5bd; margin:0;'>alle ore {ultima.ora_rilevazione}</p>"
                     f"<p style='color:#6c757d; margin:0; font-size:0.8rem;'>"
                     f"Fonte: {ultima.fonte}</p>"
+                    f"<p style='color:#4a90d9; margin:0.3rem 0 0 0; font-size:0.75rem;'>"
+                    f"<a href='https://elezioni.interno.gov.it/risultati/20260322/referendum/votanti/italia' "
+                    f"target='_blank' style='color:#4a90d9;'>elezioni.interno.gov.it</a></p>"
                     f"</div>",
                     unsafe_allow_html=True,
                 )
