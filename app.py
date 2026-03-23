@@ -589,11 +589,12 @@ def live_dashboard():
         stats = get_graph_stats(graph)
         kg_articles = stats["by_type"].get("article", 0) + stats["by_type"].get("social", 0)
         total_articles = len(articles)
-        scol1, scol2, scol3, scol4 = st.columns(4)
+        scol1, scol2, scol3, scol4, scol5 = st.columns(5)
         scol1.metric("Nodi totali", stats["total_nodes"])
         scol2.metric("Archi totali", stats["total_edges"])
-        scol3.metric("Articoli Rilevanti nel KG", f"{kg_articles} di {total_articles}")
-        scol4.metric("Sondaggi nel KG", f"{stats['by_type'].get('poll', 0)} di {len(polls)}")
+        scol3.metric("Articoli Totali", total_articles)
+        scol4.metric("Articoli nel KG", kg_articles)
+        scol5.metric("Sondaggi nel KG", f"{stats['by_type'].get('poll', 0)} di {len(polls)}")
 
     # --- Tab 2: Prediction ---
     with tab_pred:
