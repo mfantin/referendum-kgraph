@@ -906,45 +906,28 @@ def live_dashboard():
     # --- Tab 4: Articles ---
     with tab_articles:
         if articles:
-            # Platform/sentiment filter
-            fc1, fc2, fc3 = st.columns([2, 2, 2])
-            with fc1:
-                all_platforms = sorted(set(a.platform for a in articles))
-                platform_labels = {"rss": "News/RSS", "reddit": "Reddit", "telegram": "Telegram",
-                                   "bluesky": "Bluesky", "mastodon": "Mastodon", "youtube": "YouTube"}
-                filter_platform = st.multiselect(
-                    "Piattaforma", all_platforms,
-                    default=all_platforms,
-                    format_func=lambda x: platform_labels.get(x, x),
-                )
-            with fc2:
-                filter_sentiment = st.multiselect(
-                    "Sentiment", ["SI", "NO", "NEUTRAL"], default=["SI", "NO", "NEUTRAL"],
-                )
-            with fc3:
-                page_size = st.selectbox("Articoli per pagina", [25, 50, 100, 200, 500], index=1)
-
-            filtered = [a for a in articles
-                        if a.platform in filter_platform and a.sentiment_direction in filter_sentiment]
-
-            # Pagination
-            total_pages = max(1, (len(filtered) + page_size - 1) // page_size)
-            if "article_page" not in st.session_state:
-                st.session_state.article_page = 0
-            page = st.session_state.article_page
-            if page >= total_pages:
-                page = total_pages - 1
-
-            start = page * page_size
-            end = min(start + page_size, len(filtered))
-            page_articles = filtered[start:end]
-
-            st.markdown(
-                f"**{len(filtered)} articoli** (filtrati da {len(articles)}) | "
-                f"Pagina {page + 1}/{total_pages} | Mostrati {start + 1}-{end}"
+            # Summary by platform
+            plat_counts = {}
+            for a in articles:
+                plat_counts[a.platform] = plat_counts.get(a.platform, 0) + 1
+            platform_labels = {"rss": "News/RSS", "reddit": "Reddit", "telegram": "Telegram",
+                               "bluesky": "Bluesky", "mastodon": "Mastodon", "youtube": "YouTube"}
+            plat_summary = " | ".join(
+                f"{platform_labels.get(p, p)}: {c}" for p, c in sorted(plat_counts.items())
             )
 
-            for article in page_articles:
+            si_count = sum(1 for a in articles if a.sentiment_direction == "SI")
+            no_count = sum(1 for a in articles if a.sentiment_direction == "NO")
+            neutral_count = len(articles) - si_count - no_count
+
+            st.markdown(
+                f"**{len(articles)} articoli rilevanti** | "
+                f"\U0001f7e2 SI: {si_count} | \U0001f534 NO: {no_count} | \u26aa Neutri: {neutral_count}"
+            )
+            st.caption(plat_summary)
+
+            # Show all articles (no pagination — use Streamlit's native scroll)
+            for article in articles:
                 icon = {
                     "SI": "\U0001f7e2", "NO": "\U0001f534", "NEUTRAL": "\u26aa"
                 }.get(article.sentiment_direction, "\u26aa")
@@ -973,17 +956,6 @@ def live_dashboard():
                     st.markdown(article.summary[:400])
                     if article.url:
                         st.markdown(f"[\U0001f517 Leggi l'articolo]({article.url})")
-
-            # Pagination buttons
-            pcol1, pcol2, pcol3 = st.columns([1, 2, 1])
-            with pcol1:
-                if st.button("\u25c0 Precedente", disabled=(page == 0), key="art_prev"):
-                    st.session_state.article_page = max(0, page - 1)
-                    st.rerun()
-            with pcol3:
-                if st.button("Successiva \u25b6", disabled=(page >= total_pages - 1), key="art_next"):
-                    st.session_state.article_page = min(total_pages - 1, page + 1)
-                    st.rerun()
         else:
             st.info("Nessun articolo rilevante trovato. I feed RSS verranno consultati al prossimo refresh.")
 
@@ -1072,9 +1044,7 @@ def live_dashboard():
             if st.session_state.get("discovery_running"):
                 st.info("Discovery in corso in background...")
             if st.button("Riesegui Discovery"):
-                st.session_state.discovery_last_run = None  # Force re-run
-                st.cache_data.clear()
-                st.rerun()
+                st.session_state.discovery_last_run = None  # Force re-run on next fragment cycle
         else:
             st.info("Attiva 'Source Discovery' nella sidebar per scoprire nuove fonti.")
 
