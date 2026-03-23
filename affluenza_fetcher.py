@@ -201,6 +201,18 @@ def _extract_affluenza_from_articles(articles) -> list[RilevazioneAffluenza]:
     # Map known percentages to standard reporting times
     KNOWN_TIMES = {12: "12:00", 19: "19:00", 23: "23:00", 15: "15:00"}
 
+    # Regional/city names to skip (these are local data, not national)
+    REGIONAL_MARKERS = [
+        "lombardia", "emilia", "romagna", "toscana", "sicilia", "sardegna",
+        "lazio", "veneto", "piemonte", "campania", "puglia", "calabria",
+        "liguria", "marche", "abruzzo", "friuli", "umbria", "molise",
+        "basilicata", "trentino", "alto adige", "valle d'aosta",
+        "roma", "milano", "napoli", "torino", "firenze", "bologna",
+        "palermo", "genova", "bari", "catania", "venezia", "verona",
+        "brescia", "padova", "livorno", "modena", "reggio", "prato",
+        "provincia", "comune", "regione", "citta",
+    ]
+
     for article in articles:
         text = (article.title + " " + article.summary).lower()
 
@@ -214,11 +226,16 @@ def _extract_affluenza_from_articles(articles) -> list[RilevazioneAffluenza]:
                 if not (1 < pct < 95):  # sanity check
                     continue
 
-                # Try to find associated time in broader context (100 chars)
-                start = max(0, match.start() - 100)
-                end = min(len(text), match.end() + 100)
-                context = text[start:end]
+                # Check if this is a regional/local figure (not national)
+                start_ctx = max(0, match.start() - 80)
+                end_ctx = min(len(text), match.end() + 80)
+                context = text[start_ctx:end_ctx]
 
+                is_regional = any(marker in context for marker in REGIONAL_MARKERS)
+                if is_regional:
+                    continue  # Skip regional data
+
+                # Try to find associated time
                 ora = None
                 for tp in time_patterns:
                     time_match = re.search(tp, context)
@@ -229,7 +246,6 @@ def _extract_affluenza_from_articles(articles) -> list[RilevazioneAffluenza]:
                 # If no time found, infer from article publication time
                 if not ora:
                     pub_hour = article.published.hour
-                    # Map to nearest standard reporting time
                     if pub_hour <= 13:
                         ora = "12:00"
                     elif pub_hour <= 20:
@@ -238,6 +254,11 @@ def _extract_affluenza_from_articles(articles) -> list[RilevazioneAffluenza]:
                         ora = "23:00"
                     else:
                         ora = "15:00"
+
+                # Skip if we already have this exact data point from KNOWN_AFFLUENZA
+                known_pcts = {e["percentuale"] for e in KNOWN_AFFLUENZA}
+                if pct in known_pcts:
+                    continue
 
                 key = f"{pct}_{ora}"
                 if key in seen:
