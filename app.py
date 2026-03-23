@@ -527,7 +527,30 @@ def live_dashboard():
 
     # --- Build KG and Predict ---
     graph = build_graph(articles, polls, exit_polls)
-    prediction = predict(articles, polls, exit_polls)
+
+    # When real scrutiny data is available, force prediction from actual results
+    # instead of relying on the model (which is biased by pre-vote signals)
+    if exit_polls and any(ep.reliability >= 0.99 for ep in exit_polls):
+        best_ep = max(exit_polls, key=lambda ep: ep.reliability)
+        from predictor import Prediction, Signal
+        prediction = Prediction(
+            si_probability=round(best_ep.si_pct / 100, 4),
+            no_probability=round(best_ep.no_pct / 100, 4),
+            confidence=0.99,
+            ci_low=round(best_ep.si_pct / 100 - 0.005, 4),
+            ci_high=round(best_ep.si_pct / 100 + 0.005, 4),
+            signals=[Signal(
+                "Scrutinio Reale",
+                round(best_ep.si_pct / 100, 4),
+                round(best_ep.no_pct / 100, 4),
+                0.99,
+                1.0,
+                best_ep.note,
+            )],
+            data_points=len(articles) + len(polls) + len(exit_polls),
+        )
+    else:
+        prediction = predict(articles, polls, exit_polls)
 
     # Store prediction history
     should_store = (

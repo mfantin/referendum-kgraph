@@ -170,30 +170,14 @@ def extract_exit_poll_data(article: Article) -> Optional[ExitPollResult]:
 
 # Known exit poll results (hardcoded as fallback when RSS doesn't capture them)
 KNOWN_EXIT_POLLS = [
-    # Proiezioni reali con dati di spoglio (aggiornati 23/03 ore 17:00+)
+    # Risultato quasi definitivo — 55.000/61.533 sezioni scrutinate
     {
-        "source": "Consorzio Opinio/Rai (2a proiezione)",
-        "si_pct": 46.1,
-        "no_pct": 53.9,
-        "reliability": 0.95,
+        "source": "Scrutinio reale Viminale (55.000/61.533 sezioni)",
+        "si_pct": 46.05,
+        "no_pct": 53.95,
+        "reliability": 0.99,
         "is_projection": True,
-        "note": "2a proiezione Opinio/Rai, copertura 37% (fonte: affaritaliani.it)",
-    },
-    {
-        "source": "Tecnè (2a proiezione Mediaset)",
-        "si_pct": 46.0,
-        "no_pct": 54.0,
-        "reliability": 0.93,
-        "is_projection": True,
-        "note": "2a proiezione Tecnè: SI 46%, NO 54% (fonte: tgcom24.mediaset.it)",
-    },
-    {
-        "source": "Dati reali spoglio (12.014/61.533 sezioni)",
-        "si_pct": 45.62,
-        "no_pct": 54.38,
-        "reliability": 0.98,
-        "is_projection": True,
-        "note": "Dati reali scrutinio: SI 45.62%, NO 54.38% su 12.014 sezioni (fonte: quotidiano.net)",
+        "note": "Dati reali scrutinio quasi definitivo (fonte: fanpage.it, open.online, ansa.it)",
     },
 ]
 
