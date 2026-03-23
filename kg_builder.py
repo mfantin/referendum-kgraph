@@ -90,7 +90,7 @@ def _add_politician_nodes(G: nx.DiGraph):
 
 
 def _add_poll_nodes(G: nx.DiGraph, polls: list[dict]):
-    for i, poll in enumerate(polls[:10]):  # Limit to latest 10
+    for i, poll in enumerate(polls[:25]):  # Latest 25 polls
         node_id = f"Poll_{poll['source']}_{poll['date']}"
         si = poll["si_pct"]
         no = poll["no_pct"]
@@ -116,13 +116,15 @@ def _add_article_nodes(G: nx.DiGraph, articles: list[Article]):
     news_articles = [a for a in articles if a.platform == "rss"]
     social_articles = [a for a in articles if a.platform != "rss"]
 
-    # Top 15 news articles + top 15 social posts (more content in graph)
-    top_news = sorted(news_articles, key=lambda a: a.relevance, reverse=True)[:15]
+    # Scale graph nodes with data: up to 50 news + 50 social
+    max_news = min(50, len(news_articles))
+    max_social = min(50, len(social_articles))
+    top_news = sorted(news_articles, key=lambda a: a.relevance, reverse=True)[:max_news]
     top_social = sorted(
         social_articles,
         key=lambda a: a.relevance * (1.0 + (a.engagement_score or 0.0)),
         reverse=True,
-    )[:15]
+    )[:max_social]
 
     for i, article in enumerate(top_news + top_social):
         is_social = article.platform != "rss"
