@@ -530,13 +530,13 @@ EXIT_POLL_SOURCES = [
     "EMG Different",
 ]
 
-# Weight for exit poll signal (overrides polls when available)
+# Weight for exit poll signal (overrides all others when real data available)
 SIGNAL_WEIGHTS_WITH_EXIT_POLL = {
-    "exit_poll": 0.45,
-    "polls": 0.12,
-    "party_strength": 0.08,
-    "media_sentiment": 0.10,
-    "social_sentiment": 0.10,
-    "cross_platform": 0.07,
-    "momentum": 0.08,
+    "exit_poll": 0.80,
+    "polls": 0.05,
+    "party_strength": 0.02,
+    "media_sentiment": 0.04,
+    "social_sentiment": 0.04,
+    "cross_platform": 0.02,
+    "momentum": 0.03,
 }

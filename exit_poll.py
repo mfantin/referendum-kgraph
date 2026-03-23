@@ -170,29 +170,30 @@ def extract_exit_poll_data(article: Article) -> Optional[ExitPollResult]:
 
 # Known exit poll results (hardcoded as fallback when RSS doesn't capture them)
 KNOWN_EXIT_POLLS = [
+    # Proiezioni reali con dati di spoglio (aggiornati 23/03 ore 17:00+)
     {
-        "source": "Consorzio Opinio (Rai)",
-        "si_pct": 49.0,   # midpoint of 47-51%
-        "no_pct": 51.0,   # midpoint of 49-53%
-        "reliability": 0.85,
-        "is_projection": False,
-        "note": "Exit poll Opinio/Rai: SI 47-51%, NO 49-53%",
+        "source": "Consorzio Opinio/Rai (2a proiezione)",
+        "si_pct": 46.1,
+        "no_pct": 53.9,
+        "reliability": 0.95,
+        "is_projection": True,
+        "note": "2a proiezione Opinio/Rai, copertura 37% (fonte: affaritaliani.it)",
     },
     {
-        "source": "Tecnè (Mediaset)",
-        "si_pct": 48.0,   # midpoint of 46-50%
-        "no_pct": 52.0,   # midpoint of 50-54%
-        "reliability": 0.80,
-        "is_projection": False,
-        "note": "Intention poll Tecnè: SI 46-50%, NO 50-54%",
+        "source": "Tecnè (2a proiezione Mediaset)",
+        "si_pct": 46.0,
+        "no_pct": 54.0,
+        "reliability": 0.93,
+        "is_projection": True,
+        "note": "2a proiezione Tecnè: SI 46%, NO 54% (fonte: tgcom24.mediaset.it)",
     },
     {
-        "source": "Quorum/YouTrend (Sky TG24)",
-        "si_pct": 48.5,   # midpoint of 46.5-50.5%
-        "no_pct": 51.5,   # midpoint of 49.5-53.5%
-        "reliability": 0.85,
-        "is_projection": False,
-        "note": "Instant poll YouTrend/Sky: SI 46.5-50.5%, NO 49.5-53.5%",
+        "source": "Dati reali spoglio (12.014/61.533 sezioni)",
+        "si_pct": 45.62,
+        "no_pct": 54.38,
+        "reliability": 0.98,
+        "is_projection": True,
+        "note": "Dati reali scrutinio: SI 45.62%, NO 54.38% su 12.014 sezioni (fonte: quotidiano.net)",
     },
 ]
 
