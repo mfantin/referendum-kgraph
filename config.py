@@ -165,6 +165,54 @@ PARTY_POSITIONS = {
 # --- Known Polls (pre-seeded) ---
 KNOWN_POLLS = [
     {
+        "source": "Ipsos (Corriere della Sera)",
+        "date": "2026-03-20",
+        "si_pct": 45.5,
+        "no_pct": 54.5,
+        "sample_size": 1200,
+        "note": "Ultimo sondaggio pre-silenzio elettorale",
+    },
+    {
+        "source": "SWG (La7)",
+        "date": "2026-03-19",
+        "si_pct": 47.0,
+        "no_pct": 53.0,
+        "sample_size": 1500,
+        "note": "Ultimo sondaggio pre-silenzio elettorale",
+    },
+    {
+        "source": "Tecnè (Rete 4)",
+        "date": "2026-03-18",
+        "si_pct": 48.5,
+        "no_pct": 51.5,
+        "sample_size": 1000,
+        "note": "Tra chi ha deciso",
+    },
+    {
+        "source": "EMG Different (Rai)",
+        "date": "2026-03-17",
+        "si_pct": 46.0,
+        "no_pct": 54.0,
+        "sample_size": 1200,
+        "note": "Tra chi ha deciso",
+    },
+    {
+        "source": "Piepoli (Italia 1)",
+        "date": "2026-03-16",
+        "si_pct": 47.5,
+        "no_pct": 52.5,
+        "sample_size": 800,
+        "note": "Tra chi ha deciso",
+    },
+    {
+        "source": "Demos & Pi (Repubblica)",
+        "date": "2026-03-15",
+        "si_pct": 44.0,
+        "no_pct": 56.0,
+        "sample_size": 1100,
+        "note": "Tra chi ha deciso",
+    },
+    {
         "source": "Ipsos",
         "date": "2026-03-10",
         "si_pct": 46.0,
@@ -202,6 +250,14 @@ KNOWN_POLLS = [
         "si_pct": 45.0,
         "no_pct": 55.0,
         "sample_size": 800,
+        "note": "Tra chi ha deciso",
+    },
+    {
+        "source": "Quorum/YouTrend",
+        "date": "2026-02-25",
+        "si_pct": 46.5,
+        "no_pct": 53.5,
+        "sample_size": 1500,
         "note": "Tra chi ha deciso",
     },
 ]
@@ -426,10 +482,12 @@ GRAPH_LAYOUT_SEED = 42
 
 # --- Prediction Weights ---
 SIGNAL_WEIGHTS = {
-    "polls": 0.45,
-    "party_strength": 0.25,
-    "media_sentiment": 0.20,
-    "momentum": 0.10,
+    "polls": 0.30,
+    "party_strength": 0.18,
+    "media_sentiment": 0.15,
+    "social_sentiment": 0.15,
+    "cross_platform": 0.10,
+    "momentum": 0.12,
 }
 
 # Historical referendum poll error (Italy 2016: ~13 points)
@@ -461,9 +519,11 @@ EXIT_POLL_SOURCES = [
 
 # Weight for exit poll signal (overrides polls when available)
 SIGNAL_WEIGHTS_WITH_EXIT_POLL = {
-    "exit_poll": 0.50,
-    "polls": 0.15,
-    "party_strength": 0.10,
-    "media_sentiment": 0.15,
-    "momentum": 0.10,
+    "exit_poll": 0.45,
+    "polls": 0.12,
+    "party_strength": 0.08,
+    "media_sentiment": 0.10,
+    "social_sentiment": 0.10,
+    "cross_platform": 0.07,
+    "momentum": 0.08,
 }

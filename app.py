@@ -973,7 +973,7 @@ def live_dashboard():
 
         st.markdown("---")
 
-        st.markdown("#### Modello a 5 segnali ([ensemble](https://it.wikipedia.org/wiki/Ensemble_learning))")
+        st.markdown("#### Modello a 7 segnali ([ensemble](https://it.wikipedia.org/wiki/Ensemble_learning))")
         st.markdown(
             "La predizione nasce dalla combinazione ponderata di segnali indipendenti, "
             "ispirati ai [modelli ensemble](https://en.wikipedia.org/wiki/Ensemble_learning) "
@@ -985,42 +985,47 @@ def live_dashboard():
         ep_active_now = is_exit_poll_time() and len(exit_polls) > 0
 
         sig_data = {
-            "Segnale": ["Sondaggi", "Forza partitica", "Sentiment media", "Momentum", "Exit Poll"],
-            "Peso normale": ["45%", "25%", "20%", "10%", "-"],
-            "Peso con exit poll": ["15%", "10%", "15%", "10%", "50%"],
+            "Segnale": [
+                "Sondaggi", "Forza partitica", "Sentiment media",
+                "Social Sentiment", "Consenso Cross-Platform",
+                "Momentum", "Exit Poll",
+            ],
+            "Peso normale": ["30%", "18%", "15%", "15%", "10%", "12%", "-"],
+            "Peso con exit poll": ["12%", "8%", "10%", "10%", "7%", "8%", "45%"],
             "Stato attuale": [
-                "Attivo", "Attivo", "Attivo", "Attivo",
+                "Attivo", "Attivo", "Attivo", "Attivo", "Attivo", "Attivo",
                 "ATTIVO" if ep_active_now else "In attesa (dopo le 15:00 del 23/03)"
             ],
         }
         st.dataframe(pd.DataFrame(sig_data), use_container_width=True, hide_index=True)
 
-        with st.expander("Sondaggi (peso 45%)", expanded=False):
+        with st.expander("Sondaggi (peso 30%)", expanded=False):
             st.markdown(
-                "[Media ponderata](https://it.wikipedia.org/wiki/Media_ponderata) dei sondaggi disponibili. "
+                "[Media ponderata](https://it.wikipedia.org/wiki/Media_ponderata) dei sondaggi disponibili, "
+                "inclusi **sondaggi sintetici** dai social media. "
                 "Ogni sondaggio e pesato per "
                 "**recenza** ([decay esponenziale](https://it.wikipedia.org/wiki/Decadimento_esponenziale): "
                 "1.0, 0.8, 0.64...) e **dimensione del campione** "
-                "(campioni > 1000 pesano di piu). Confidenza massima: 70%.\n\n"
-                "Fonti: Ipsos, SWG, EMG, Tecne, Euromedia + sondaggi estratti automaticamente "
-                "dal testo degli articoli tramite "
-                "[espressioni regolari](https://it.wikipedia.org/wiki/Espressione_regolare).\n\n"
+                "(campioni > 1000 pesano di piu). Confidenza massima: 85%.\n\n"
+                "Fonti: Ipsos, SWG, EMG, Tecne, Euromedia, Piepoli, Demos&Pi, Quorum/YouTrend "
+                "+ sondaggi estratti automaticamente dal testo degli articoli + "
+                "sondaggi sintetici generati dall'aggregazione del sentiment social per piattaforma/giorno.\n\n"
                 "**Limite noto:** errore storico dei sondaggi referendari italiani ~13pp "
                 "([referendum 2016](https://it.wikipedia.org/wiki/Referendum_costituzionale_in_Italia_del_2016))."
             )
 
-        with st.expander("Forza partitica (peso 25%)", expanded=False):
+        with st.expander("Forza partitica (peso 18%)", expanded=False):
             st.markdown(
                 "Stima il bacino SI/NO sulla base del consenso elettorale dei partiti schierati.\n\n"
                 "- **SI** (centrodestra + centristi): ~52%\n"
                 "- **NO** (opposizione): ~40.5%\n\n"
-                "Confidenza fissata al 40%: il voto partitico non si traduce linearmente "
+                "Confidenza dinamica (max 55%): il voto partitico non si traduce linearmente "
                 "nel voto referendario. Nel 2016 circa il 20% degli elettori PD voto in dissenso."
             )
 
-        with st.expander("Sentiment media (peso 20%)", expanded=False):
+        with st.expander("Sentiment media (peso 15%)", expanded=False):
             st.markdown(
-                "Analizza il tono degli articoli da 80+ fonti con "
+                "Analizza il tono degli articoli da fonti giornalistiche (solo RSS/news) con "
                 "[keyword matching](https://en.wikipedia.org/wiki/Keyword_spotting) su 200+ termini "
                 "([analisi del sentiment](https://it.wikipedia.org/wiki/Analisi_del_sentimento)).\n\n"
                 "**Rilevamento negazioni:** il sistema verifica se nelle 4 parole precedenti a un keyword "
@@ -1028,18 +1033,42 @@ def live_dashboard():
                 '- "e una buona riforma" -> SI\n'
                 '- "non e una buona riforma" -> NO\n'
                 '- "non e pericolosa" -> SI\n\n'
+                "Confidenza massima: 80%.\n\n"
                 "**Limite noto:** non cattura [ironia](https://it.wikipedia.org/wiki/Ironia), "
                 "sarcasmo o doppie negazioni complesse."
             )
 
-        with st.expander("Momentum (peso 10%)", expanded=False):
+        with st.expander("Social Sentiment (peso 15%)", expanded=False):
+            st.markdown(
+                "Segnale separato dedicato ai **social media** (Reddit, Telegram, Bluesky, Mastodon, YouTube). "
+                "A differenza del Sentiment Media, pesa i contenuti in base al livello di "
+                "**engagement** (upvotes, views, like, repost).\n\n"
+                "La confidenza cresce con:\n"
+                "- Numero di post direzionali\n"
+                "- **Diversita di piattaforme** (bonus per ogni piattaforma attiva)\n"
+                "- Engagement medio dei post\n\n"
+                "Confidenza massima: 75%."
+            )
+
+        with st.expander("Consenso Cross-Platform (peso 10%)", expanded=False):
+            st.markdown(
+                "Misura il **grado di accordo** tra piattaforme diverse. "
+                "Se media tradizionali, Reddit, Telegram e Bluesky puntano tutti nella stessa "
+                "direzione, questo segnale rafforza la confidenza complessiva.\n\n"
+                "- Serve un minimo di 2 piattaforme con almeno 2 post direzionali ciascuna\n"
+                "- La confidenza scala con il rapporto di consenso e il numero di piattaforme\n\n"
+                "Confidenza massima: 70%."
+            )
+
+        with st.expander("Momentum (peso 12%)", expanded=False):
             st.markdown(
                 "Misura lo spostamento del sentiment nel tempo con "
                 "[**decay esponenziale**](https://it.wikipedia.org/wiki/Decadimento_esponenziale) "
                 "([emivita](https://it.wikipedia.org/wiki/Emivita_(fisica)) 24h). "
                 "Gli articoli delle ultime 48h vengono confrontati con quelli precedenti.\n\n"
+                "Il contenuto social con alto engagement pesa di piu nel calcolo del trend. "
                 "Formula: `SI% = 0.5 + shift * 0.3` (coefficiente di smorzamento).\n\n"
-                "La confidenza scala dinamicamente con il numero di articoli direzionali (max 40%)."
+                "La confidenza scala con articoli direzionali + numero di piattaforme (max 65%)."
             )
 
         with st.expander("Exit Poll (peso 50%, solo post-voto)", expanded=False):
