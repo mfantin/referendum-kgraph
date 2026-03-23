@@ -10,8 +10,9 @@ import config
 from data_fetcher import Article
 
 
-def build_graph(articles: list[Article], polls: list[dict]) -> nx.DiGraph:
-    """Build the complete knowledge graph from articles and polls."""
+def build_graph(articles: list[Article], polls: list[dict],
+                exit_polls=None) -> nx.DiGraph:
+    """Build the complete knowledge graph from articles, polls, and exit polls."""
     G = nx.DiGraph()
 
     _add_central_node(G)
@@ -23,6 +24,8 @@ def build_graph(articles: list[Article], polls: list[dict]) -> nx.DiGraph:
     _add_article_nodes(G, articles)
     _add_social_platform_nodes(G, articles)
     _add_sentiment_aggregate(G, articles)
+    if exit_polls:
+        _add_exit_poll_nodes(G, exit_polls)
 
     return G
 
@@ -262,6 +265,27 @@ def _add_sentiment_aggregate(G: nx.DiGraph, articles: list[Article]):
     G.add_edge("Sentiment_Media", "SI", relationship="INDICATES", weight=si_pct / 100)
     G.add_edge("Sentiment_Media", "NO", relationship="INDICATES", weight=no_pct / 100)
     G.add_edge("Sentiment_Media", "Referendum", relationship="MEASURES", weight=0.6)
+
+
+def _add_exit_poll_nodes(G: nx.DiGraph, exit_polls):
+    """Add exit poll / projection nodes to the graph."""
+    for i, ep in enumerate(exit_polls):
+        node_id = f"ExitPoll_{i}_{ep.source[:15]}"
+        label_type = "Proiezione" if ep.is_projection else "Exit Poll"
+        G.add_node(
+            node_id,
+            type="exit_poll",
+            color="#e74c3c" if ep.no_pct > ep.si_pct else "#2ecc71",
+            label=f"{label_type}\n{ep.source[:20]}\nSI:{ep.si_pct:.1f}% NO:{ep.no_pct:.1f}%",
+            si_pct=ep.si_pct,
+            no_pct=ep.no_pct,
+            source=ep.source,
+            reliability=ep.reliability,
+            size=max(25, 20 + ep.reliability * 15),
+        )
+        G.add_edge(node_id, "SI", relationship="INDICATES", weight=ep.si_pct / 100)
+        G.add_edge(node_id, "NO", relationship="INDICATES", weight=ep.no_pct / 100)
+        G.add_edge(node_id, "Referendum", relationship="MEASURES", weight=0.9)
 
 
 def get_graph_stats(G: nx.DiGraph) -> dict:

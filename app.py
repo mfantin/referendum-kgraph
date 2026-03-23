@@ -526,7 +526,7 @@ def live_dashboard():
                 ))
 
     # --- Build KG and Predict ---
-    graph = build_graph(articles, polls)
+    graph = build_graph(articles, polls, exit_polls)
     prediction = predict(articles, polls, exit_polls)
 
     # Store prediction history
